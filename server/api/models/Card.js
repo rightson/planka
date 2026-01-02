@@ -197,6 +197,16 @@ module.exports = {
       type: 'ref',
       columnName: 'list_changed_at',
     },
+    contentMigrated: {
+      type: 'boolean',
+      defaultsTo: false,
+      columnName: 'content_migrated',
+    },
+    contentVersion: {
+      type: 'number',
+      defaultsTo: 0,
+      columnName: 'content_version',
+    },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

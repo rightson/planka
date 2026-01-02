@@ -109,4 +109,9 @@ module.exports.custom = {
   smtpFrom: process.env.SMTP_FROM,
 
   gravatarBaseUrl: process.env.GRAVATAR_BASE_URL,
+
+  // Large Card Content System
+  maxCardContentSize: envToBytes(process.env.MAX_CARD_CONTENT_SIZE) || 10 * 1024 * 1024 * 1024, // Default 10GB
+  enableLargeCardContent: process.env.ENABLE_LARGE_CARD_CONTENT !== 'false', // Enabled by default
+  cardContentVersionsLimit: envToNumber(process.env.CARD_CONTENT_VERSIONS_LIMIT) || 0, // 0 = unlimited
 };

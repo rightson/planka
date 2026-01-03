@@ -25,6 +25,7 @@ module.exports = {
 
     // Skip if already migrated or no description
     if (card.contentMigrated || !card.description) {
+      sails.log.debug(`Card ${cardId}: Skipping migration (contentMigrated=${card.contentMigrated}, hasDescription=${!!card.description})`);
       return null;
     }
 
@@ -36,9 +37,15 @@ module.exports = {
       cardId,
     );
 
+    if (inlineAttachments.length === 0) {
+      sails.log.warn(`Card ${cardId}: No base64 images found to migrate`);
+      return null;
+    }
+
     // Save inline attachments
     const fileManager = sails.hooks.fileManager.getInstance();
     const savedAttachments = [];
+    let errorCount = 0;
 
     for (const attachment of inlineAttachments) {
       try {
@@ -73,16 +80,23 @@ module.exports = {
           isActive: true,
         }).fetch();
 
+        sails.log.info(`Card ${cardId}: Saved image ${savedAttachments.length + 1}/${inlineAttachments.length} (${buffer.length} bytes, contentId: ${contentId})`);
+
         savedAttachments.push({
           placeholder: attachment.placeholder,
           contentId,
           id: inlineAttachment.id,
         });
       } catch (error) {
-        sails.log.error(`Failed to save inline attachment for card ${cardId}:`, error);
+        errorCount++;
+        sails.log.error(`Card ${cardId}: Failed to save inline attachment ${errorCount}:`, error.message);
+        sails.log.error(error.stack);
         // Continue with other attachments
       }
     }
+
+    sails.log.info(`Card ${cardId}: Successfully saved ${savedAttachments.length}/${inlineAttachments.length} images (${errorCount} errors)`);
+
 
     // Replace placeholders with inline:// URLs
     let finalContent = migratedContent;

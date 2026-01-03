@@ -323,28 +323,33 @@ module.exports = {
     if (values.description && values.description.includes('data:image')) {
       try {
         sails.log.info(
-          `Card ${card.id}: Auto-migrating description with base64 images to new content system`,
+          `Card ${card.id}: Detected ${(values.description.match(/data:image/g) || []).length} base64 images in description`,
         );
 
         // Temporarily save description for migration
-        await Card.updateOne({ id: card.id }).set({ description: values.description });
+        await Card.updateOne({ id: card.id }).set({
+          description: values.description,
+          contentMigrated: false  // Ensure migration can run
+        });
 
         // Trigger auto-migration
         const migration = await sails.helpers.cardContent.autoMigrateFromDescription(card.id);
 
         if (migration && migration.content) {
-          // Save migrated content to new system
-          await sails.helpers.cardContent.createOrUpdateOne(card.id, migration.content);
-
-          // Keep description for backward compatibility
-          values.description = migration.content;
-
           sails.log.info(
-            `Card ${card.id}: Successfully migrated ${migration.inlineAttachmentCount} images`,
+            `Card ${card.id}: Successfully migrated ${migration.inlineAttachmentCount} images to files`,
           );
+
+          // Replace description with migrated content containing inline:// URLs
+          values.description = migration.content;
+          values.contentMigrated = true;
+
+          sails.log.debug(`Card ${card.id}: New description with inline URLs: ${migration.content.substring(0, 150)}...`);
+        } else {
+          sails.log.warn(`Card ${card.id}: Auto-migration returned null`);
         }
       } catch (error) {
-        sails.log.error(`Card ${card.id}: Auto-migration failed:`, error);
+        sails.log.error(`Card ${card.id}: Auto-migration failed:`, error.stack || error);
         // Continue with normal update if migration fails
       }
     }

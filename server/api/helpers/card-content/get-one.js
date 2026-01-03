@@ -41,8 +41,15 @@ module.exports = {
       cardContent = await CardContent.findOne(query);
 
       if (cardContent) {
-        const fileManager = sails.hooks.fileManager.getInstance();
-        content = await fileManager.readCardContent(cardContent.contentRef);
+        // HYBRID STORAGE: Load from inline or external based on storage type
+        if (cardContent.storageType === CardContent.StorageTypes.INLINE) {
+          // Load from database
+          content = cardContent.contentInline;
+        } else {
+          // Load from file storage
+          const fileManager = sails.hooks.fileManager.getInstance();
+          content = await fileManager.readCardContent(cardContent.contentRef);
+        }
 
         // Load inline attachments
         if (cardContent.inlineAttachmentIds && cardContent.inlineAttachmentIds.length > 0) {

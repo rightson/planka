@@ -90,8 +90,14 @@ const ContentTypes = {
   SLATE: 'slate',
 };
 
+const StorageTypes = {
+  INLINE: 'inline',
+  EXTERNAL: 'external',
+};
+
 module.exports = {
   ContentTypes,
+  StorageTypes,
 
   attributes: {
     //  ╔═╗╦═╗╦╔╦╗╦╔╦╗╦╦  ╦╔═╗╔═╗
@@ -104,9 +110,20 @@ module.exports = {
       defaultsTo: ContentTypes.MARKDOWN,
       columnName: 'content_type',
     },
+    storageType: {
+      type: 'string',
+      isIn: Object.values(StorageTypes),
+      defaultsTo: StorageTypes.INLINE,
+      columnName: 'storage_type',
+    },
+    contentInline: {
+      type: 'string',
+      allowNull: true,
+      columnName: 'content_inline',
+    },
     contentRef: {
       type: 'string',
-      required: true,
+      allowNull: true,
       columnName: 'content_ref',
     },
     contentHash: {

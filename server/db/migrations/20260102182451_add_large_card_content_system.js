@@ -21,9 +21,11 @@ exports.up = async (knex) => {
     table.bigInteger('id').primary().defaultTo(knex.raw('next_id()'));
     table.bigInteger('card_id').notNullable();
 
-    // Content storage
+    // Content storage - HYBRID APPROACH
     table.text('content_type').notNullable().defaultTo('markdown');
-    table.text('content_ref').notNullable(); // File path or S3 key
+    table.text('storage_type').notNullable().defaultTo('inline'); // 'inline' | 'external'
+    table.text('content_inline'); // For content < 1MB (stored in DB)
+    table.text('content_ref'); // For content > 1MB (file path or S3 key)
     table.text('content_hash'); // SHA256 for deduplication
 
     // Metadata
@@ -43,6 +45,7 @@ exports.up = async (knex) => {
     table.unique(['card_id', 'version']);
     table.index('card_id');
     table.index('content_hash');
+    table.index('storage_type');
 
     /* Foreign Keys */
 

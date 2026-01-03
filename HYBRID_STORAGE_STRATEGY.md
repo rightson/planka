@@ -243,7 +243,7 @@ async function getCardContent(cardId, version) {
 The migration script automatically determines storage type:
 
 ```javascript
-// server/scripts/migrate-card-content.js
+// server/db/migrate-card-content.js
 
 async function migrateCard(card) {
   const content = card.description;
@@ -440,4 +440,6 @@ if (lastAccessed > 90days && storageType === 'external') {
 
 **Implementation Date**: January 2, 2026
 **Status**: Implemented
+**Migration Script**: `/server/db/migrate-card-content.js`
+**Migration Command**: `npm run db:migrate-card-content`
 **Next Review**: After production deployment

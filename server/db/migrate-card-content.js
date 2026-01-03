@@ -7,10 +7,11 @@
 /**
  * migrate-card-content.js
  *
- * Migrates cards from the old description-based system to the new file-based content system.
+ * Migrates cards from the old description-based system to the new hybrid card content system.
  *
  * Usage:
- *   node server/scripts/migrate-card-content.js [options]
+ *   npm run db:migrate-card-content
+ *   node server/db/migrate-card-content.js [options]
  *
  * Options:
  *   --dry-run       Show what would be migrated without making changes
@@ -19,7 +20,12 @@
  *   --card-id ID    Migrate only a specific card
  */
 
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-console */
+
 const crypto = require('crypto');
+const sails = require('sails');
+const rc = require('sails/accessible/rc');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -30,40 +36,39 @@ const options = {
   cardId: args.find((arg) => arg.startsWith('--card-id='))?.split('=')[1],
 };
 
-// Bootstrap Sails
-require('sails').load(
-  {
-    hooks: {
-      grunt: false,
-      pubsub: false,
-      sockets: false,
-      session: false,
-      views: false,
-      blueprints: false,
-    },
-    log: {
-      level: 'info',
-    },
-  },
-  async (err, sails) => {
-    if (err) {
-      console.error('Failed to load Sails:', err);
-      process.exit(1);
-    }
+// Load Sails (following upgrade.js pattern)
+const loadSails = () =>
+  new Promise((resolve) => {
+    sails.load(
+      {
+        ...rc('sails'),
+        hooks: {
+          grunt: false,
+          pubsub: false,
+          sockets: false,
+          session: false,
+          views: false,
+          blueprints: false,
+        },
+        log: {
+          level: 'info',
+        },
+      },
+      resolve,
+    );
+  });
 
-    try {
-      await runMigration(options);
-      sails.lower(() => {
-        process.exit(0);
-      });
-    } catch (error) {
-      console.error('Migration failed:', error);
-      sails.lower(() => {
-        process.exit(1);
-      });
-    }
-  },
-);
+(async () => {
+  try {
+    await loadSails();
+    await runMigration(options);
+  } catch (error) {
+    process.exitCode = 1;
+    throw error;
+  } finally {
+    sails.lower();
+  }
+})();
 
 async function runMigration(options) {
   console.log('🚀 Starting card content migration...\n');

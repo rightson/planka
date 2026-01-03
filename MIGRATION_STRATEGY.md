@@ -60,7 +60,9 @@ transaction
 
 ```bash
 # Dry run to analyze distribution
-node server/scripts/migrate-card-content.js --dry-run
+npm run db:migrate-card-content -- --dry-run
+# OR
+node server/db/migrate-card-content.js --dry-run
 
 # Sample output:
 📊 Found 1000 cards to migrate
@@ -80,7 +82,9 @@ node server/scripts/migrate-card-content.js --dry-run
 
 ```bash
 # Migrate a single card first
-node server/scripts/migrate-card-content.js --card-id=123
+npm run db:migrate-card-content -- --card-id=123
+# OR
+node server/db/migrate-card-content.js --card-id=123
 
 # Sample output:
 Card 123: Migrating...
@@ -101,10 +105,12 @@ Card 123: Migrating...
 
 ```bash
 # Migrate in batches (default: 100 cards at a time)
-node server/scripts/migrate-card-content.js
+npm run db:migrate-card-content
 
 # Or customize batch size
-node server/scripts/migrate-card-content.js --batch-size=50
+npm run db:migrate-card-content -- --batch-size=50
+# OR
+node server/db/migrate-card-content.js --batch-size=50
 ```
 
 **Monitor:**
@@ -142,7 +148,7 @@ GROUP BY storage_type;
 Test migration without making changes:
 
 ```bash
-node server/scripts/migrate-card-content.js --dry-run
+npm run db:migrate-card-content -- --dry-run
 ```
 
 **What it does:**
@@ -156,7 +162,7 @@ node server/scripts/migrate-card-content.js --dry-run
 Continue from previous failure:
 
 ```bash
-node server/scripts/migrate-card-content.js --resume
+npm run db:migrate-card-content -- --resume
 ```
 
 **What it does:**
@@ -169,7 +175,7 @@ node server/scripts/migrate-card-content.js --resume
 Test with specific card:
 
 ```bash
-node server/scripts/migrate-card-content.js --card-id=123
+npm run db:migrate-card-content -- --card-id=123
 ```
 
 **Use cases:**
@@ -183,10 +189,10 @@ Control migration speed:
 
 ```bash
 # Smaller batches (slower, safer)
-node server/scripts/migrate-card-content.js --batch-size=10
+npm run db:migrate-card-content -- --batch-size=10
 
 # Larger batches (faster, more resource intensive)
-node server/scripts/migrate-card-content.js --batch-size=500
+npm run db:migrate-card-content -- --batch-size=500
 ```
 
 ## Migration Statistics
@@ -304,10 +310,10 @@ If needed, adjust before migration:
 
 ```bash
 # Use 2MB threshold instead of 1MB
-CARD_CONTENT_INLINE_THRESHOLD=2MB node server/scripts/migrate-card-content.js --dry-run
+CARD_CONTENT_INLINE_THRESHOLD=2MB npm run db:migrate-card-content -- --dry-run
 
 # Use 500KB threshold (more conservative)
-CARD_CONTENT_INLINE_THRESHOLD=500KB node server/scripts/migrate-card-content.js --dry-run
+CARD_CONTENT_INLINE_THRESHOLD=500KB npm run db:migrate-card-content -- --dry-run
 ```
 
 ## Error Handling
@@ -335,7 +341,7 @@ chmod -R 755 /path/to/uploads/private/card-content
 **Solution:**
 ```bash
 # Reduce batch size
-node server/scripts/migrate-card-content.js --batch-size=10
+npm run db:migrate-card-content -- --batch-size=10
 ```
 
 #### 3. Out of Memory
@@ -347,7 +353,7 @@ node server/scripts/migrate-card-content.js --batch-size=10
 **Solution:**
 ```bash
 # Increase Node.js memory
-NODE_OPTIONS=--max-old-space-size=4096 node server/scripts/migrate-card-content.js
+NODE_OPTIONS=--max-old-space-size=4096 npm run db:migrate-card-content
 ```
 
 ### Error Recovery
@@ -355,7 +361,7 @@ NODE_OPTIONS=--max-old-space-size=4096 node server/scripts/migrate-card-content.
 ```bash
 # 1. Fix the issue
 # 2. Resume migration
-node server/scripts/migrate-card-content.js --resume
+npm run db:migrate-card-content -- --resume
 
 # The script will:
 # - Skip already migrated cards
@@ -403,7 +409,7 @@ async function rollbackCard(cardId) {
 
 ```bash
 # Terminal 1: Run migration
-node server/scripts/migrate-card-content.js
+npm run db:migrate-card-content
 
 # Terminal 2: Monitor database
 watch -n 5 "psql -c '
@@ -432,10 +438,10 @@ watch -n 5 "du -sh /path/to/uploads/private/card-content"
 
 ```bash
 # Always start with dry-run
-node server/scripts/migrate-card-content.js --dry-run
+npm run db:migrate-card-content -- --dry-run
 
 # Then test single card
-node server/scripts/migrate-card-content.js --card-id=123
+npm run db:migrate-card-content -- --card-id=123
 ```
 
 ### 2. Backup First
@@ -462,16 +468,16 @@ For large deployments:
 
 ```bash
 # Day 1: Migrate 10% (dry-run + test)
-node server/scripts/migrate-card-content.js --dry-run
+npm run db:migrate-card-content -- --dry-run
 
 # Day 2: Migrate 100 cards (test)
 # Manually select 100 card IDs, migrate individually
 
 # Day 3: Migrate 1000 cards (batch)
-node server/scripts/migrate-card-content.js --batch-size=100
+npm run db:migrate-card-content -- --batch-size=100
 
 # Day 4: Migrate remaining
-node server/scripts/migrate-card-content.js --resume
+npm run db:migrate-card-content -- --resume
 ```
 
 ## Verification Queries
@@ -542,5 +548,6 @@ Benefits Achieved:
 ---
 
 **Migration Date**: TBD
-**Script Location**: `/server/scripts/migrate-card-content.js`
+**Script Location**: `/server/db/migrate-card-content.js`
+**Command**: `npm run db:migrate-card-content`
 **Documentation**: `/HYBRID_STORAGE_STRATEGY.md`

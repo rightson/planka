@@ -42,19 +42,32 @@ module.exports = {
 
     for (const attachment of inlineAttachments) {
       try {
-        // Save image file
+        // Generate content ID for inline:// URLs
         const contentId = crypto.randomBytes(16).toString('hex');
         const buffer = Buffer.from(attachment.data, 'base64');
+        const filename = `pasted-image-${contentId}.${attachment.extension}`;
 
-        await fileManager.saveInlineAttachment(cardId, contentId, buffer, attachment.extension);
+        // Create UploadedFile record first
+        const uploadedFile = await UploadedFile.create({
+          type: 'inlineAttachment',
+          mimeType: attachment.mimeType,
+          size: buffer.length,
+          referencesTotal: 1,
+        }).fetch();
+
+        // Save file to storage using uploadedFile.id
+        await fileManager.saveInlineAttachment(
+          uploadedFile.id,
+          filename,
+          buffer,
+          attachment.mimeType,
+        );
 
         // Create InlineAttachment record
         const inlineAttachment = await InlineAttachment.create({
           cardId,
+          uploadedFileId: uploadedFile.id,
           contentId,
-          filename: `pasted-image-${contentId}`,
-          mimeType: attachment.mimeType,
-          size: buffer.length,
           source: InlineAttachment.Sources.MIGRATION,
           position: savedAttachments.length,
           isActive: true,

@@ -319,6 +319,36 @@ module.exports = {
       'isSubscribed',
     ]);
 
+    // Auto-migrate description to new content system if it contains base64 images
+    if (values.description && values.description.includes('data:image')) {
+      try {
+        sails.log.info(
+          `Card ${card.id}: Auto-migrating description with base64 images to new content system`,
+        );
+
+        // Temporarily save description for migration
+        await Card.updateOne({ id: card.id }).set({ description: values.description });
+
+        // Trigger auto-migration
+        const migration = await sails.helpers.cardContent.autoMigrateFromDescription(card.id);
+
+        if (migration && migration.content) {
+          // Save migrated content to new system
+          await sails.helpers.cardContent.createOrUpdateOne(card.id, migration.content);
+
+          // Keep description for backward compatibility
+          values.description = migration.content;
+
+          sails.log.info(
+            `Card ${card.id}: Successfully migrated ${migration.inlineAttachmentCount} images`,
+          );
+        }
+      } catch (error) {
+        sails.log.error(`Card ${card.id}: Auto-migration failed:`, error);
+        // Continue with normal update if migration fails
+      }
+    }
+
     card = await sails.helpers.cards.updateOne
       .with({
         project,

@@ -376,6 +376,14 @@ module.exports = {
       throw Errors.CARD_NOT_FOUND;
     }
 
+    // Convert inline:// URLs to HTTP URLs for rendering
+    if (card.description && card.description.includes('inline://')) {
+      card.description = card.description.replace(
+        /inline:\/\/([\w-]+)/g,
+        (match, contentId) => `/api/inline-attachments/${contentId}`,
+      );
+    }
+
     return {
       item: card,
     };

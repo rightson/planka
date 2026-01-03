@@ -22,7 +22,19 @@ module.exports = {
   },
 
   async fn(inputs) {
-    const { cardId, content, contentType } = inputs;
+    let { cardId, content, contentType } = inputs;
+
+    // 0. Auto-migrate from old description system if needed
+    const migration = await sails.helpers.cardContent.autoMigrateFromDescription(cardId);
+    if (migration) {
+      sails.log.info(
+        `Auto-migrated card ${cardId}: ${migration.inlineAttachmentCount} inline attachments`,
+      );
+      // Use migrated content if no new content provided (shouldn't happen in normal flow)
+      if (!content || content === '') {
+        content = migration.content;
+      }
+    }
 
     // 1. Calculate content size and hash
     const contentSize = Buffer.byteLength(content, 'utf-8');

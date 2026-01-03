@@ -60,7 +60,7 @@ transaction
 
 ```bash
 # Dry run to analyze distribution
-npm run db:migrate-card-content -- --dry-run
+npm run db:upgrade-card -- --dry-run
 # OR
 node server/db/migrate-card-content.js --dry-run
 
@@ -82,7 +82,7 @@ node server/db/migrate-card-content.js --dry-run
 
 ```bash
 # Migrate a single card first
-npm run db:migrate-card-content -- --card-id=123
+npm run db:upgrade-card -- --card-id=123
 # OR
 node server/db/migrate-card-content.js --card-id=123
 
@@ -105,10 +105,10 @@ Card 123: Migrating...
 
 ```bash
 # Migrate in batches (default: 100 cards at a time)
-npm run db:migrate-card-content
+npm run db:upgrade-card
 
 # Or customize batch size
-npm run db:migrate-card-content -- --batch-size=50
+npm run db:upgrade-card -- --batch-size=50
 # OR
 node server/db/migrate-card-content.js --batch-size=50
 ```
@@ -148,7 +148,7 @@ GROUP BY storage_type;
 Test migration without making changes:
 
 ```bash
-npm run db:migrate-card-content -- --dry-run
+npm run db:upgrade-card -- --dry-run
 ```
 
 **What it does:**
@@ -162,7 +162,7 @@ npm run db:migrate-card-content -- --dry-run
 Continue from previous failure:
 
 ```bash
-npm run db:migrate-card-content -- --resume
+npm run db:upgrade-card -- --resume
 ```
 
 **What it does:**
@@ -175,7 +175,7 @@ npm run db:migrate-card-content -- --resume
 Test with specific card:
 
 ```bash
-npm run db:migrate-card-content -- --card-id=123
+npm run db:upgrade-card -- --card-id=123
 ```
 
 **Use cases:**
@@ -189,10 +189,10 @@ Control migration speed:
 
 ```bash
 # Smaller batches (slower, safer)
-npm run db:migrate-card-content -- --batch-size=10
+npm run db:upgrade-card -- --batch-size=10
 
 # Larger batches (faster, more resource intensive)
-npm run db:migrate-card-content -- --batch-size=500
+npm run db:upgrade-card -- --batch-size=500
 ```
 
 ## Migration Statistics
@@ -310,10 +310,10 @@ If needed, adjust before migration:
 
 ```bash
 # Use 2MB threshold instead of 1MB
-CARD_CONTENT_INLINE_THRESHOLD=2MB npm run db:migrate-card-content -- --dry-run
+CARD_CONTENT_INLINE_THRESHOLD=2MB npm run db:upgrade-card -- --dry-run
 
 # Use 500KB threshold (more conservative)
-CARD_CONTENT_INLINE_THRESHOLD=500KB npm run db:migrate-card-content -- --dry-run
+CARD_CONTENT_INLINE_THRESHOLD=500KB npm run db:upgrade-card -- --dry-run
 ```
 
 ## Error Handling
@@ -341,7 +341,7 @@ chmod -R 755 /path/to/uploads/private/card-content
 **Solution:**
 ```bash
 # Reduce batch size
-npm run db:migrate-card-content -- --batch-size=10
+npm run db:upgrade-card -- --batch-size=10
 ```
 
 #### 3. Out of Memory
@@ -353,7 +353,7 @@ npm run db:migrate-card-content -- --batch-size=10
 **Solution:**
 ```bash
 # Increase Node.js memory
-NODE_OPTIONS=--max-old-space-size=4096 npm run db:migrate-card-content
+NODE_OPTIONS=--max-old-space-size=4096 npm run db:upgrade-card
 ```
 
 ### Error Recovery
@@ -361,7 +361,7 @@ NODE_OPTIONS=--max-old-space-size=4096 npm run db:migrate-card-content
 ```bash
 # 1. Fix the issue
 # 2. Resume migration
-npm run db:migrate-card-content -- --resume
+npm run db:upgrade-card -- --resume
 
 # The script will:
 # - Skip already migrated cards
@@ -409,7 +409,7 @@ async function rollbackCard(cardId) {
 
 ```bash
 # Terminal 1: Run migration
-npm run db:migrate-card-content
+npm run db:upgrade-card
 
 # Terminal 2: Monitor database
 watch -n 5 "psql -c '
@@ -438,10 +438,10 @@ watch -n 5 "du -sh /path/to/uploads/private/card-content"
 
 ```bash
 # Always start with dry-run
-npm run db:migrate-card-content -- --dry-run
+npm run db:upgrade-card -- --dry-run
 
 # Then test single card
-npm run db:migrate-card-content -- --card-id=123
+npm run db:upgrade-card -- --card-id=123
 ```
 
 ### 2. Backup First
@@ -468,16 +468,16 @@ For large deployments:
 
 ```bash
 # Day 1: Migrate 10% (dry-run + test)
-npm run db:migrate-card-content -- --dry-run
+npm run db:upgrade-card -- --dry-run
 
 # Day 2: Migrate 100 cards (test)
 # Manually select 100 card IDs, migrate individually
 
 # Day 3: Migrate 1000 cards (batch)
-npm run db:migrate-card-content -- --batch-size=100
+npm run db:upgrade-card -- --batch-size=100
 
 # Day 4: Migrate remaining
-npm run db:migrate-card-content -- --resume
+npm run db:upgrade-card -- --resume
 ```
 
 ## Verification Queries
@@ -549,5 +549,5 @@ Benefits Achieved:
 
 **Migration Date**: TBD
 **Script Location**: `/server/db/migrate-card-content.js`
-**Command**: `npm run db:migrate-card-content`
+**Command**: `npm run db:upgrade-card`
 **Documentation**: `/HYBRID_STORAGE_STRATEGY.md`

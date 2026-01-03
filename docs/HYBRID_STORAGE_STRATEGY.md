@@ -441,5 +441,5 @@ if (lastAccessed > 90days && storageType === 'external') {
 **Implementation Date**: January 2, 2026
 **Status**: Implemented
 **Migration Script**: `/server/db/migrate-card-content.js`
-**Migration Command**: `npm run db:migrate-card-content`
+**Migration Command**: `npm run db:upgrade-card`
 **Next Review**: After production deployment

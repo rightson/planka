@@ -5,13 +5,17 @@
  */
 
 /**
- * migrate-card-content.js
+ * upgrade-card.js
  *
- * Migrates cards from the old description-based system to the new hybrid card content system.
+ * Optional bulk migration tool for upgrading cards from the old description-based system 
+ * to the new hybrid card content system.
+ *
+ * NOTE: This script is OPTIONAL. Cards automatically migrate when edited.
+ *       Use this only if you want to pre-migrate all cards at once.
  *
  * Usage:
- *   npm run db:migrate-card-content
- *   node server/db/migrate-card-content.js [options]
+ *   npm run db:upgrade-card
+ *   node server/db/upgrade-card.js [options]
  *
  * Options:
  *   --dry-run       Show what would be migrated without making changes

@@ -52,7 +52,7 @@ This document summarizes the implementation of the Large Card Content System for
 
 #### 6. Migration Script
 - ✅ `/server/db/migrate-card-content.js` - Migrate existing cards from old to new system
-  - Command: `npm run db:migrate-card-content`
+  - Command: `npm run db:upgrade-card`
   - Supports dry-run mode
   - Supports resume from failure
   - Configurable batch size
@@ -244,16 +244,16 @@ Update card content (creates new version).
 Run migration script:
 ```bash
 # Dry run
-npm run db:migrate-card-content -- --dry-run
+npm run db:upgrade-card -- --dry-run
 
 # Actual migration
-npm run db:migrate-card-content
+npm run db:upgrade-card
 
 # Resume from failure
-npm run db:migrate-card-content -- --resume
+npm run db:upgrade-card -- --resume
 
 # Migrate specific card
-npm run db:migrate-card-content -- --card-id=123
+npm run db:upgrade-card -- --card-id=123
 ```
 
 ### Phase 3: Gradual Adoption

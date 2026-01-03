@@ -101,6 +101,11 @@ async function runMigration(options) {
     inlineAttachmentsCreated: 0,
     totalSizeBefore: 0,
     totalSizeAfter: 0,
+    // Hybrid storage stats
+    inlineStorage: 0,
+    externalStorage: 0,
+    inlineStorageSize: 0,
+    externalStorageSize: 0,
   };
 
   // Process cards in batches
@@ -119,6 +124,14 @@ async function runMigration(options) {
         stats.inlineAttachmentsCreated += result.inlineAttachmentsCreated || 0;
         stats.totalSizeBefore += result.sizeBefore || 0;
         stats.totalSizeAfter += result.sizeAfter || 0;
+        // Track hybrid storage distribution
+        if (result.storageType === 'inline') {
+          stats.inlineStorage += 1;
+          stats.inlineStorageSize += result.sizeAfter || 0;
+        } else if (result.storageType === 'external') {
+          stats.externalStorage += 1;
+          stats.externalStorageSize += result.sizeAfter || 0;
+        }
       } else if (result.status === 'skipped') {
         stats.skipped += 1;
       } else {
@@ -141,10 +154,32 @@ async function runMigration(options) {
   console.log(`⏭️  Skipped:               ${stats.skipped}`);
   console.log(`❌ Errors:                ${stats.errors}`);
   console.log(`🖼️  Inline attachments:    ${stats.inlineAttachmentsCreated}`);
+
+  if (stats.totalSizeBefore > 0) {
+    console.log(
+      `💾 Size reduction:        ${formatBytes(stats.totalSizeBefore - stats.totalSizeAfter)} (${Math.round(
+        ((stats.totalSizeBefore - stats.totalSizeAfter) / stats.totalSizeBefore) * 100,
+      )}%)`,
+    );
+  }
+
+  console.log('\n📦 Hybrid Storage Distribution:');
+  console.log('================================');
   console.log(
-    `💾 Size reduction:        ${formatBytes(stats.totalSizeBefore - stats.totalSizeAfter)} (${Math.round(
-      ((stats.totalSizeBefore - stats.totalSizeAfter) / stats.totalSizeBefore) * 100,
-    )}%)`,
+    `💿 Inline (DB):           ${stats.inlineStorage} cards (${formatBytes(stats.inlineStorageSize)}) - ${Math.round(
+      (stats.inlineStorage / stats.success) * 100,
+    )}%`,
+  );
+  console.log(
+    `📁 External (Files):      ${stats.externalStorage} cards (${formatBytes(stats.externalStorageSize)}) - ${Math.round(
+      (stats.externalStorage / stats.success) * 100,
+    )}%`,
+  );
+  console.log(
+    `📊 Average inline size:   ${stats.inlineStorage > 0 ? formatBytes(stats.inlineStorageSize / stats.inlineStorage) : '0 Bytes'}`,
+  );
+  console.log(
+    `📊 Average external size: ${stats.externalStorage > 0 ? formatBytes(stats.externalStorageSize / stats.externalStorage) : '0 Bytes'}`,
   );
 }
 
@@ -170,11 +205,22 @@ async function migrateCard(card, options) {
     console.log(`  Found ${base64Images.length} base64 images`);
 
     if (options.dryRun) {
+      // Estimate size after migration (approximate)
+      const estimatedSize = card.description.length;
+      const inlineThreshold = sails.config.custom.cardContentInlineThreshold || 1 * 1024 * 1024;
+      const estimatedStorageType =
+        estimatedSize <= inlineThreshold ? CardContent.StorageTypes.INLINE : CardContent.StorageTypes.EXTERNAL;
+
+      console.log(
+        `  📦 Estimated storage: ${estimatedStorageType} (${formatBytes(estimatedSize)}${estimatedStorageType === 'inline' ? ' - would use DB' : ' - would use files'})`,
+      );
+
       return {
         status: 'success',
+        storageType: estimatedStorageType,
         inlineAttachmentsCreated: base64Images.length,
         sizeBefore: card.description.length,
-        sizeAfter: card.description.length, // Estimated
+        sizeAfter: estimatedSize,
       };
     }
 
@@ -226,37 +272,83 @@ async function migrateCard(card, options) {
       migratedContent = migratedContent.replace(original, `![](inline://${contentId})`);
     }
 
-    // Calculate content hash
+    // Calculate content size and hash
+    const contentSize = Buffer.byteLength(migratedContent, 'utf-8');
     const contentHash = crypto.createHash('sha256').update(migratedContent).digest('hex');
 
-    // Save to new content system
-    const contentRef = await sails.hooks.fileManager
-      .getInstance()
-      .saveCardContent(card.id, migratedContent, 1);
+    // Determine storage type based on size (HYBRID STRATEGY)
+    const inlineThreshold = sails.config.custom.cardContentInlineThreshold || 1 * 1024 * 1024; // 1MB
+    const storageType =
+      contentSize <= inlineThreshold ? CardContent.StorageTypes.INLINE : CardContent.StorageTypes.EXTERNAL;
 
-    await CardContent.create({
-      cardId: card.id,
-      contentType: CardContent.ContentTypes.MARKDOWN,
-      contentRef,
-      contentHash,
-      size: Buffer.byteLength(migratedContent, 'utf-8'),
-      version: 1,
-      inlineAttachmentIds: inlineAttachments.map((a) => a.inlineAtt.id),
-    });
+    console.log(
+      `  📦 Storage: ${storageType} (${formatBytes(contentSize)}${storageType === 'inline' ? ' - will use DB' : ' - will use files'})`,
+    );
 
-    // Mark as migrated
-    await Card.updateOne({ id: card.id }).set({
-      contentMigrated: true,
-      contentVersion: 1,
-    });
+    let contentInline = null;
+    let contentRef = null;
 
-    console.log(`  ✅ Card ${card.id} migrated successfully`);
+    // Save based on storage type
+    if (storageType === CardContent.StorageTypes.INLINE) {
+      // ✅ Store in database - use ACID transaction
+      await sails.getDatastore().transaction(async (db) => {
+        // Create CardContent record
+        await CardContent.create({
+          cardId: card.id,
+          contentType: CardContent.ContentTypes.MARKDOWN,
+          storageType: CardContent.StorageTypes.INLINE,
+          contentInline: migratedContent,
+          contentRef: null,
+          contentHash,
+          size: contentSize,
+          version: 1,
+          inlineAttachmentIds: inlineAttachments.map((a) => a.inlineAtt.id),
+        })
+          .usingConnection(db)
+          .fetch();
+
+        // Mark as migrated - atomically with content creation
+        await Card.updateOne({ id: card.id })
+          .set({
+            contentMigrated: true,
+            contentVersion: 1,
+          })
+          .usingConnection(db);
+      });
+
+      console.log(`  ✅ Card ${card.id} migrated to INLINE storage (ACID transaction)`);
+    } else {
+      // ✅ Store in file system
+      const fileManager = sails.hooks.fileManager.getInstance();
+      contentRef = await fileManager.saveCardContent(card.id, migratedContent, 1);
+
+      await CardContent.create({
+        cardId: card.id,
+        contentType: CardContent.ContentTypes.MARKDOWN,
+        storageType: CardContent.StorageTypes.EXTERNAL,
+        contentInline: null,
+        contentRef,
+        contentHash,
+        size: contentSize,
+        version: 1,
+        inlineAttachmentIds: inlineAttachments.map((a) => a.inlineAtt.id),
+      });
+
+      // Mark as migrated
+      await Card.updateOne({ id: card.id }).set({
+        contentMigrated: true,
+        contentVersion: 1,
+      });
+
+      console.log(`  ✅ Card ${card.id} migrated to EXTERNAL storage (file: ${contentRef})`);
+    }
 
     return {
       status: 'success',
+      storageType,
       inlineAttachmentsCreated: inlineAttachments.length,
       sizeBefore: card.description.length,
-      sizeAfter: migratedContent.length,
+      sizeAfter: contentSize,
     };
   } catch (error) {
     console.error(`  ❌ Card ${card.id} migration failed:`, error.message);

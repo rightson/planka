@@ -141,7 +141,7 @@ const Edit = React.memo(({ commentId, onClose }) => {
           ref={textMentionsRef}
           inputRef={textInputRef}
           value={data.text}
-          maxLength={1048576}
+          maxLength={10 * 1024 * 1024 * 1024}
           rows={3}
           className="mentions-input"
           style={{

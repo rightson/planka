@@ -29,7 +29,7 @@
  *             properties:
  *               text:
  *                 type: string
- *                 maxLength: 1048576
+ *                 maxLength: 10737418240
  *                 description: Content of the comment
  *                 example: This task is almost complete...
  *     responses:
@@ -74,7 +74,7 @@ module.exports = {
     text: {
       type: 'string',
       isNotEmptyString: true,
-      maxLength: 1048576,
+      maxLength: 10 * 1024 * 1024 * 1024, // 10GB
     },
   },
 

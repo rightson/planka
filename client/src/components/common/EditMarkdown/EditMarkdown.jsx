@@ -17,7 +17,7 @@ import MarkdownEditor from '../MarkdownEditor';
 
 import styles from './EditMarkdown.module.scss';
 
-const MAX_LENGTH = 1048576;
+const MAX_LENGTH = 10 * 1024 * 1024 * 1024; // 10GB
 
 const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }) => {
   const defaultMode = useSelector((state) => selectors.selectCurrentUser(state).defaultEditorMode);
@@ -101,7 +101,7 @@ const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }
             content={
               isExceeded
                 ? t('common.contentExceedsLimit', {
-                    limit: '1MB',
+                    limit: '10GB',
                   })
                 : t('action.save')
             }

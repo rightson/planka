@@ -149,7 +149,7 @@ const Add = React.memo(() => {
           inputRef={textInputRef}
           value={data.text}
           placeholder={t('common.writeComment')}
-          maxLength={1048576}
+          maxLength={10 * 1024 * 1024 * 1024}
           rows={isOpened ? 3 : 1}
           className="mentions-input"
           style={{

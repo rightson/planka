@@ -234,8 +234,10 @@ module.exports = {
       // Migrate base64 images to file storage if description is being updated
       if (values.description) {
         try {
+          // Ensure cardId is a string (inputs.record.id might be an object in some cases)
+          const cardId = String(inputs.record.id || inputs.record);
           values.description = await sails.helpers.inlineImages.migrateLegacyImages({
-            cardId: inputs.record.id,
+            cardId,
             markdown: values.description,
           });
         } catch (error) {

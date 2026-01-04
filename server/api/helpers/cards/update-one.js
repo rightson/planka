@@ -234,8 +234,31 @@ module.exports = {
       // Migrate base64 images to file storage if description is being updated
       if (values.description) {
         try {
-          // Ensure cardId is a string (inputs.record.id might be an object in some cases)
-          const cardId = String(inputs.record.id || inputs.record);
+          // Extract card ID as string - handle various possible formats
+          let cardId;
+          const recordId = inputs.record.id;
+
+          if (typeof recordId === 'string') {
+            cardId = recordId;
+          } else if (typeof recordId === 'number') {
+            cardId = String(recordId);
+          } else if (recordId && typeof recordId === 'object') {
+            // Handle objects with toString, valueOf, or direct property access
+            if (typeof recordId.toString === 'function' && recordId.toString() !== '[object Object]') {
+              cardId = recordId.toString();
+            } else if (typeof recordId.valueOf === 'function') {
+              cardId = String(recordId.valueOf());
+            } else if (recordId.value !== undefined) {
+              cardId = String(recordId.value);
+            } else {
+              // Last resort: JSON stringify and log warning
+              cardId = JSON.stringify(recordId);
+              sails.log.warn('Card ID is complex object, using JSON string:', cardId);
+            }
+          } else {
+            cardId = String(inputs.record);
+          }
+
           values.description = await sails.helpers.inlineImages.migrateLegacyImages({
             cardId,
             markdown: values.description,

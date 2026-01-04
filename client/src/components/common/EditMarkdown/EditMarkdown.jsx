@@ -17,7 +17,10 @@ import MarkdownEditor from '../MarkdownEditor';
 
 import styles from './EditMarkdown.module.scss';
 
-const MAX_LENGTH = 1048576;
+// Increased limit to accommodate base64 images before server-side migration.
+// Base64 encoding increases image size by ~33%, so we allow up to 20MB client-side.
+// Server will migrate base64 to file URLs (much smaller) before final validation.
+const MAX_LENGTH = 20 * 1048576; // 20MB
 
 const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, onClose }) => {
   const defaultMode = useSelector((state) => selectors.selectCurrentUser(state).defaultEditorMode);
@@ -102,7 +105,7 @@ const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, o
             content={
               isExceeded
                 ? t('common.contentExceedsLimit', {
-                    limit: '1MB',
+                    limit: '20MB',
                   })
                 : t('action.save')
             }

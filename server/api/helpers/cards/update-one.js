@@ -231,6 +231,19 @@ module.exports = {
         values.listChangedAt = new Date().toISOString();
       }
 
+      // Migrate base64 images to file storage if description is being updated
+      if (values.description) {
+        try {
+          values.description = await sails.helpers.inlineImages.migrateBase64Images({
+            cardId: inputs.record.id,
+            markdown: values.description,
+          });
+        } catch (error) {
+          sails.log.warn('Failed to migrate base64 images in description:', error);
+          // Continue with update even if migration fails
+        }
+      }
+
       const updateResult = await Card.qm.updateOne(inputs.record.id, values);
 
       ({ card } = updateResult);

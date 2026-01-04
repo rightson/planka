@@ -17,6 +17,7 @@ import { ActionName } from '@gravity-ui/markdown-editor/_/bundle/config/action-n
 /* eslint-enable import/no-unresolved */
 
 import { EditorModes } from '../../../constants/Enums';
+import inlineAttachmentsApi from '../../../api/inline-attachments';
 
 import styles from './MarkdownEditor.module.scss';
 
@@ -51,14 +52,37 @@ export const fileToBase64Data = (file) =>
     reader.onerror = reject;
   });
 
-const fileUploadHandler = async (file) => {
-  const base64Data = await fileToBase64Data(file);
-  return { url: base64Data };
+const createFileUploadHandler = (cardId) => async (file) => {
+  // If no cardId, fall back to base64 (e.g., for new cards not yet saved)
+  if (!cardId) {
+    const base64Data = await fileToBase64Data(file);
+    return { url: base64Data };
+  }
+
+  try {
+    // Upload as inline attachment
+    const response = await inlineAttachmentsApi.createInlineAttachment(cardId, {
+      file,
+      source: 'paste',
+      altText: file.name,
+    });
+
+    // Return inline:// URL for storage
+    return {
+      url: `inline://${response.item.contentId}`,
+      alt: response.item.altText || file.name,
+    };
+  } catch (error) {
+    console.error('Failed to upload inline attachment:', error);
+    // Fallback to base64 on error
+    const base64Data = await fileToBase64Data(file);
+    return { url: base64Data };
+  }
 };
 
 const MarkdownEditor = React.forwardRef(
   (
-    { defaultValue, defaultMode, isError, onChange, onSubmit, onCancel, onModeChange, ...props },
+    { cardId, defaultValue, defaultMode, isError, onChange, onSubmit, onCancel, onModeChange, ...props },
     ref,
   ) => {
     const wrapperRef = useRef(null);
@@ -82,7 +106,7 @@ const MarkdownEditor = React.forwardRef(
         linkify: true,
       },
       handlers: {
-        uploadFile: fileUploadHandler,
+        uploadFile: createFileUploadHandler(cardId),
       },
       wysiwygConfig: {
         extensionOptions: {
@@ -167,6 +191,7 @@ const MarkdownEditor = React.forwardRef(
 );
 
 MarkdownEditor.propTypes = {
+  cardId: PropTypes.string,
   defaultValue: PropTypes.string.isRequired,
   defaultMode: PropTypes.oneOf(Object.values(EditorModes)),
   isError: PropTypes.bool,
@@ -177,6 +202,7 @@ MarkdownEditor.propTypes = {
 };
 
 MarkdownEditor.defaultProps = {
+  cardId: null,
   defaultMode: EditorModes.WYSIWYG,
   isError: false,
   onModeChange: undefined,

@@ -158,6 +158,12 @@ module.exports.routes = {
   'PATCH /api/attachments/:id': 'attachments/update',
   'DELETE /api/attachments/:id': 'attachments/delete',
 
+  'POST /api/cards/:cardId/inline-attachments': 'inline-attachments/create',
+  'GET /api/cards/:cardId/inline-attachments': 'inline-attachments/show',
+
+  'GET /api/cards/:cardId/content': 'cards/get-content',
+  'PUT /api/cards/:cardId/content': 'cards/update-content',
+
   'POST /api/boards/:boardId/custom-field-groups': 'custom-field-groups/create-in-board',
   'POST /api/cards/:cardId/custom-field-groups': 'custom-field-groups/create-in-card',
   'GET /api/custom-field-groups/:id': 'custom-field-groups/show',

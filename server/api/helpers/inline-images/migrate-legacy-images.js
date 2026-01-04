@@ -15,9 +15,9 @@ const { fileTypeFromBuffer } = require('file-type');
 module.exports = {
   inputs: {
     cardId: {
-      type: 'string',
+      type: 'ref', // Accept any type - will convert to string internally
       required: true,
-      description: 'The ID of the card',
+      description: 'The ID of the card (string, number, or object with id)',
     },
     markdown: {
       type: 'string',
@@ -32,7 +32,34 @@ module.exports = {
   },
 
   async fn(inputs, exits) {
-    const { cardId, markdown, maxSize } = inputs;
+    const { markdown, maxSize } = inputs;
+
+    // Convert cardId to string - handle various formats
+    let cardId;
+    const rawCardId = inputs.cardId;
+
+    if (typeof rawCardId === 'string') {
+      cardId = rawCardId;
+    } else if (typeof rawCardId === 'number') {
+      cardId = String(rawCardId);
+    } else if (rawCardId && typeof rawCardId === 'object') {
+      // Try various conversion methods
+      if (typeof rawCardId.toString === 'function' && rawCardId.toString() !== '[object Object]') {
+        cardId = rawCardId.toString();
+      } else if (typeof rawCardId.valueOf === 'function') {
+        const value = rawCardId.valueOf();
+        cardId = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      } else if (rawCardId.id !== undefined) {
+        cardId = String(rawCardId.id);
+      } else if (rawCardId.value !== undefined) {
+        cardId = String(rawCardId.value);
+      } else {
+        cardId = JSON.stringify(rawCardId);
+        sails.log.warn('Card ID is complex object, converted to:', cardId);
+      }
+    } else {
+      cardId = String(rawCardId);
+    }
 
     // If no markdown provided, return as is
     if (!markdown) {

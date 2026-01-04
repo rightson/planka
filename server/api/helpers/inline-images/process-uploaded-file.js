@@ -11,9 +11,9 @@ const { fileTypeFromFile } = require('file-type');
 module.exports = {
   inputs: {
     cardId: {
-      type: 'string',
+      type: 'ref', // Accept any type - will convert to string internally
       required: true,
-      description: 'The ID of the card',
+      description: 'The ID of the card (string, number, or object with id)',
     },
     file: {
       type: 'json',
@@ -38,7 +38,27 @@ module.exports = {
 
   async fn(inputs, exits) {
     const fileManager = sails.hooks['file-manager'].getInstance();
-    const { cardId, file, maxSize } = inputs;
+    const { file, maxSize } = inputs;
+
+    // Convert cardId to string - handle various formats
+    let cardId;
+    const rawCardId = inputs.cardId;
+
+    if (typeof rawCardId === 'string') {
+      cardId = rawCardId;
+    } else if (typeof rawCardId === 'number') {
+      cardId = String(rawCardId);
+    } else if (rawCardId && typeof rawCardId === 'object') {
+      if (typeof rawCardId.toString === 'function' && rawCardId.toString() !== '[object Object]') {
+        cardId = rawCardId.toString();
+      } else if (rawCardId.id !== undefined) {
+        cardId = String(rawCardId.id);
+      } else {
+        cardId = JSON.stringify(rawCardId);
+      }
+    } else {
+      cardId = String(rawCardId);
+    }
 
     try {
       // Detect MIME type from file

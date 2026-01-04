@@ -234,12 +234,12 @@ module.exports = {
       // Migrate base64 images to file storage if description is being updated
       if (values.description) {
         try {
-          values.description = await sails.helpers.inlineImages.migrateBase64Images({
+          values.description = await sails.helpers.inlineImages.migrateLegacyImages({
             cardId: inputs.record.id,
             markdown: values.description,
           });
         } catch (error) {
-          sails.log.warn('Failed to migrate base64 images in description:', error);
+          sails.log.warn('Failed to migrate legacy images in description:', error);
           // Continue with update even if migration fails
         }
       }

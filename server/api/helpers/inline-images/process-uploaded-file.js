@@ -40,6 +40,26 @@ module.exports = {
     const fileManager = sails.hooks['file-manager'].getInstance();
     const { file, maxSize } = inputs;
 
+    // Check if inline_image table exists before attempting to process upload
+    // This prevents errors when the feature hasn't been enabled via migration
+    try {
+      const tableExists = await sails.sendNativeQuery(
+        `SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name = 'inline_image'
+        );`
+      );
+
+      const exists = tableExists?.rows?.[0]?.exists;
+      if (!exists) {
+        throw new Error('Inline images feature not enabled. Please run database migrations first.');
+      }
+    } catch (error) {
+      sails.log.warn('Inline images feature not available:', error.message);
+      throw error;
+    }
+
     // Convert cardId to string - handle various formats
     let cardId;
     const rawCardId = inputs.cardId;

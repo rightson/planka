@@ -34,6 +34,28 @@ module.exports = {
   async fn(inputs, exits) {
     const { markdown, maxSize } = inputs;
 
+    // Check if inline_image table exists before attempting migration
+    // This prevents errors when the feature hasn't been enabled via migration
+    try {
+      const tableExists = await sails.sendNativeQuery(
+        `SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name = 'inline_image'
+        );`
+      );
+
+      const exists = tableExists?.rows?.[0]?.exists;
+      if (!exists) {
+        sails.log.debug('Skipping base64 migration: inline_image table does not exist');
+        return exits.success(markdown);
+      }
+    } catch (error) {
+      sails.log.warn('Could not check for inline_image table existence:', error.message);
+      // If we can't check, skip migration to be safe
+      return exits.success(markdown);
+    }
+
     // Convert cardId to string - handle various formats
     let cardId;
     const rawCardId = inputs.cardId;

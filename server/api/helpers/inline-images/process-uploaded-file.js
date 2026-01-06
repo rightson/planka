@@ -5,6 +5,7 @@
 
 const fsPromises = require('fs').promises;
 const path = require('path');
+const { Readable } = require('stream');
 const { rimraf } = require('rimraf');
 const { fileTypeFromFile } = require('file-type');
 
@@ -136,20 +137,25 @@ module.exports = {
       // Atomically save file
       let filePath;
       if (buffer) {
-        await fileManager.save(filePathSegment, buffer, file.type);
+        await fileManager.save(filePathSegment, Readable.from(buffer));
         filePath = filePathSegment;
       } else {
         filePath = await fileManager.move(file.fd, filePathSegment, file.type);
       }
 
       // Create InlineImage record for tracking
-      const markdownPath = `uploads/${filename}`;
       const inlineImage = await InlineImage.qm.create({
         cardId,
         uploadedFileId,
         filename,
-        markdownPath,
+        markdownPath: null, // Will be generated from ID
       }).fetch();
+
+      // Generate authenticated URL path using the inline image ID
+      const markdownPath = `api/inline-images/${inlineImage.id}`;
+
+      // Update the record with the markdown path
+      await InlineImage.qm.updateOne(inlineImage.id, { markdownPath });
 
       // Clean up temp file if move was successful
       if (!filePath) {

@@ -78,6 +78,7 @@ const MarkdownEditor = React.forwardRef(
     ref,
   ) => {
     const wrapperRef = useRef(null);
+    const editorRef = useRef(null);
 
     const handleWrapperRef = useCallback(
       (element) => {
@@ -119,6 +120,9 @@ const MarkdownEditor = React.forwardRef(
         mode: defaultMode,
       },
     });
+
+    // Store editor reference for parent access
+    editorRef.current = editor;
 
     useEffect(() => {
       const handleChange = () => {
@@ -166,10 +170,20 @@ const MarkdownEditor = React.forwardRef(
       };
     }, []);
 
+    // Expose getValue method through ref
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        getValue: () => editor.getValue(),
+        focus: () => wrapperRef.current?.focus(),
+      }),
+      [editor],
+    );
+
     return (
       <div
         {...props} // eslint-disable-line react/jsx-props-no-spreading
-        ref={handleWrapperRef}
+        ref={wrapperRef}
         className={classNames(styles.wrapper, isError && styles.wrapperError)}
       >
         <MarkdownEditorView

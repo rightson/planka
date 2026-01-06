@@ -17,10 +17,10 @@ import MarkdownEditor from '../MarkdownEditor';
 
 import styles from './EditMarkdown.module.scss';
 
-// Increased limit to accommodate base64 images before server-side migration.
-// Base64 encoding increases image size by ~33%, so we allow up to 20MB client-side.
-// Server will migrate base64 to file URLs (much smaller) before final validation.
-const MAX_LENGTH = 20 * 1048576; // 20MB
+// Images are now stored as separate files (not inline base64), so we maintain
+// the original 1MB limit for text content. Legacy base64 images will be migrated
+// to file storage automatically on save.
+const MAX_LENGTH = 1048576; // 1MB
 
 const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, onClose }) => {
   const defaultMode = useSelector((state) => selectors.selectCurrentUser(state).defaultEditorMode);
@@ -49,12 +49,13 @@ const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, o
   const submit = useCallback(() => {
     const cleanValue = value.trim() || null;
 
-    if (!isExceeded && cleanValue !== defaultValue) {
+    // Always allow update - server will migrate base64 images to files
+    if (cleanValue !== defaultValue) {
       onUpdate(cleanValue);
     }
 
-    onClose(isExceeded ? cleanValue : null);
-  }, [onUpdate, onClose, defaultValue, value, isExceeded]);
+    onClose(null);
+  }, [onUpdate, onClose, defaultValue, value]);
 
   const handleChange = useCallback((nextValue) => {
     setValue(nextValue);
@@ -102,15 +103,15 @@ const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, o
             {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
             positive
             ref={handleSubmitButtonRef}
-            content={
-              isExceeded
-                ? t('common.contentExceedsLimit', {
-                    limit: '20MB',
-                  })
-                : t('action.save')
-            }
-            disabled={isExceeded}
+            content={t('action.save')}
           />
+          {isExceeded && (
+            <span className={styles.warning}>
+              {t('common.contentExceedsLimit', {
+                limit: '1MB',
+              })}
+            </span>
+          )}
           <Button
             {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
             ref={handleCancelButtonRef}

@@ -9,12 +9,12 @@ This feature transforms image pasting in card descriptions from base64 data URLs
 ### 1. Storage Locations
 
 - **Inline Images**: `public/uploads/` - Small images embedded in card descriptions
-  - Size limit: 10MB (default, configurable)
+  - Size limit: Respects global MAX_UPLOAD_FILE_SIZE (default 10MB if not set)
   - Publicly accessible for display in markdown
   - Examples: Screenshots, diagrams pasted into descriptions
 
 - **File Attachments**: `private/attachments/` - Large file attachments
-  - No size limit (respects global MAX_UPLOAD_FILE_SIZE)
+  - Size limit: Respects global MAX_UPLOAD_FILE_SIZE
   - Access controlled via download endpoints
   - Examples: Documents, large files attached to cards
 

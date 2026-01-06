@@ -176,7 +176,7 @@ module.exports = {
     description: {
       type: 'string',
       isNotEmptyString: true,
-      maxLength: 20 * 1048576, // 20MB - allows base64 images before migration to file URLs
+      maxLength: 1048576, // 1MB - allows base64 images before migration to file URLs
       allowNull: true,
     },
     dueDate: {

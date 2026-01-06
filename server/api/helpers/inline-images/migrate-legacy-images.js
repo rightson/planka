@@ -25,15 +25,13 @@ module.exports = {
       required: false,
       description: 'The markdown content containing possible base64 images',
     },
-    maxSize: {
-      type: 'number',
-      defaultsTo: 10 * 1024 * 1024, // 10MB
-      description: 'Maximum allowed file size in bytes',
-    },
   },
 
   async fn(inputs, exits) {
-    const { markdown, maxSize } = inputs;
+    const { markdown } = inputs;
+
+    // Use MAX_UPLOAD_FILE_SIZE from config, or 10MB as default
+    const maxSize = sails.config.custom.maxUploadFileSize || 10 * 1024 * 1024;
 
     // Check if inline_image table exists before attempting migration
     // This prevents errors when the feature hasn't been enabled via migration
@@ -173,14 +171,14 @@ module.exports = {
         }
 
         // Create InlineImage record for tracking
-        const markdownPath = `uploads/${filename}`;
+        let inlineImage;
         try {
-          await InlineImage.qm.create({
+          inlineImage = await InlineImage.qm.create({
             cardId,
             uploadedFileId,
             filename,
-            markdownPath,
-          });
+            markdownPath: null, // Will be generated from ID
+          }).fetch();
         } catch (recordError) {
           sails.log.error('Failed to create InlineImage record:', recordError);
           // Clean up file
@@ -188,6 +186,12 @@ module.exports = {
           await UploadedFile.qm.destroy({ id: uploadedFileId });
           continue;
         }
+
+        // Generate authenticated URL path using the inline image ID
+        const markdownPath = `api/inline-images/${inlineImage.id}`;
+
+        // Update the record with the markdown path
+        await InlineImage.qm.updateOne(inlineImage.id, { markdownPath });
 
         // Replace base64 data URL with file URL in markdown
         // Preserve alt text if it exists

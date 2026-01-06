@@ -32,10 +32,7 @@
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: Image file to upload (max 10MB)
- *               maxSize:
- *                 type: number
- *                 description: Maximum file size in bytes (default 10MB)
+ *                 description: Image file to upload (respects MAX_UPLOAD_FILE_SIZE, default 10MB)
  *     responses:
  *       200:
  *         description: Image uploaded successfully
@@ -113,10 +110,6 @@ module.exports = {
       ...idInput,
       required: true,
     },
-    maxSize: {
-      type: 'number',
-      defaultsTo: 10 * 1024 * 1024, // 10MB
-    },
   },
 
   exits: {
@@ -175,13 +168,15 @@ module.exports = {
 
     const file = _.last(files);
 
-    // Process inline image
+    // Process inline image with MAX_UPLOAD_FILE_SIZE or 10MB default
+    const maxSize = sails.config.custom.maxUploadFileSize || 10 * 1024 * 1024;
+
     let result;
     try {
       result = await sails.helpers.inlineImages.processUploadedFile({
         cardId: inputs.cardId,
         file,
-        maxSize: inputs.maxSize,
+        maxSize,
       });
     } catch (error) {
       if (error.exit === 'invalidMimeType') {

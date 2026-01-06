@@ -144,13 +144,18 @@ module.exports = {
       }
 
       // Create InlineImage record for tracking
-      const markdownPath = `uploads/${filename}`;
       const inlineImage = await InlineImage.qm.create({
         cardId,
         uploadedFileId,
         filename,
-        markdownPath,
+        markdownPath: null, // Will be generated from ID
       }).fetch();
+
+      // Generate authenticated URL path using the inline image ID
+      const markdownPath = `api/inline-images/${inlineImage.id}`;
+
+      // Update the record with the markdown path
+      await InlineImage.qm.updateOne(inlineImage.id, { markdownPath });
 
       // Clean up temp file if move was successful
       if (!filePath) {

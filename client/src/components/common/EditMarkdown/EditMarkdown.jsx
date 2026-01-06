@@ -17,9 +17,12 @@ import MarkdownEditor from '../MarkdownEditor';
 
 import styles from './EditMarkdown.module.scss';
 
-const MAX_LENGTH = 1048576;
+// Increased limit to accommodate base64 images before server-side migration.
+// Base64 encoding increases image size by ~33%, so we allow up to 20MB client-side.
+// Server will migrate base64 to file URLs (much smaller) before final validation.
+const MAX_LENGTH = 20 * 1048576; // 20MB
 
-const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }) => {
+const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, onClose }) => {
   const defaultMode = useSelector((state) => selectors.selectCurrentUser(state).defaultEditorMode);
 
   const dispatch = useDispatch();
@@ -84,6 +87,7 @@ const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }
       <MarkdownEditor
         {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
         ref={fieldRef}
+        cardId={cardId}
         defaultValue={value}
         defaultMode={defaultMode}
         isError={isExceeded}
@@ -101,7 +105,7 @@ const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }
             content={
               isExceeded
                 ? t('common.contentExceedsLimit', {
-                    limit: '1MB',
+                    limit: '20MB',
                   })
                 : t('action.save')
             }
@@ -121,6 +125,7 @@ const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }
 });
 
 EditMarkdown.propTypes = {
+  cardId: PropTypes.string,
   defaultValue: PropTypes.string,
   draftValue: PropTypes.string,
   // placeholder: PropTypes.string.isRequired, // TODO: remove?
@@ -129,6 +134,7 @@ EditMarkdown.propTypes = {
 };
 
 EditMarkdown.defaultProps = {
+  cardId: undefined,
   defaultValue: undefined,
   draftValue: undefined,
 };

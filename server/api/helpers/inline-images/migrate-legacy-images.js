@@ -5,6 +5,7 @@
 
 const crypto = require('crypto');
 const path = require('path');
+const { Readable } = require('stream');
 const { rimraf } = require('rimraf');
 const { fileTypeFromBuffer } = require('file-type');
 
@@ -163,7 +164,7 @@ module.exports = {
         const filePathSegment = `${sails.config.custom.inlineImagesPathSegment}/${filename}`;
 
         try {
-          await fileManager.save(filePathSegment, buffer, 'application/octet-stream');
+          await fileManager.save(filePathSegment, Readable.from(buffer));
         } catch (saveError) {
           sails.log.error('Failed to save migrated inline image:', saveError);
           // Clean up UploadedFile record

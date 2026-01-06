@@ -5,6 +5,7 @@
 
 const fsPromises = require('fs').promises;
 const path = require('path');
+const { Readable } = require('stream');
 const { rimraf } = require('rimraf');
 const { fileTypeFromFile } = require('file-type');
 
@@ -136,7 +137,7 @@ module.exports = {
       // Atomically save file
       let filePath;
       if (buffer) {
-        await fileManager.save(filePathSegment, buffer, file.type);
+        await fileManager.save(filePathSegment, Readable.from(buffer));
         filePath = filePathSegment;
       } else {
         filePath = await fileManager.move(file.fd, filePathSegment, file.type);

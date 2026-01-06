@@ -47,7 +47,11 @@ const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, o
   const isExceeded = value.length > MAX_LENGTH;
 
   const submit = useCallback(() => {
-    const cleanValue = value.trim() || null;
+    // Get the current value directly from the editor to ensure we have the latest content
+    // This is important because the editor might not have fired change events yet
+    // after async operations like image uploads
+    const currentValue = fieldRef.current?.getValue ? fieldRef.current.getValue() : value;
+    const cleanValue = currentValue.trim() || null;
 
     // Always allow update - server will migrate base64 images to files
     if (cleanValue !== defaultValue) {
@@ -89,7 +93,7 @@ const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, o
         {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
         ref={fieldRef}
         cardId={cardId}
-        defaultValue={value}
+        defaultValue={draftValue || defaultValue || ''}
         defaultMode={defaultMode}
         isError={isExceeded}
         onChange={handleChange}

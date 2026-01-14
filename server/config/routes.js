@@ -158,6 +158,8 @@ module.exports.routes = {
   'PATCH /api/attachments/:id': 'attachments/update',
   'DELETE /api/attachments/:id': 'attachments/delete',
 
+  'POST /api/cards/:cardId/inline-images': 'inline-images/upload',
+
   'POST /api/boards/:boardId/custom-field-groups': 'custom-field-groups/create-in-board',
   'POST /api/cards/:cardId/custom-field-groups': 'custom-field-groups/create-in-card',
   'GET /api/custom-field-groups/:id': 'custom-field-groups/show',
@@ -230,6 +232,16 @@ module.exports.routes = {
       path.join(
         path.resolve(sails.config.custom.uploadsBasePath),
         sails.config.custom.backgroundImagesPathSegment,
+      ),
+    ),
+    skipAssets: false,
+  },
+
+  'GET /uploads/*': {
+    fn: staticDirServer('/uploads', () =>
+      path.join(
+        path.resolve(sails.config.custom.uploadsBasePath),
+        sails.config.custom.inlineImagesPathSegment,
       ),
     ),
     skipAssets: false,

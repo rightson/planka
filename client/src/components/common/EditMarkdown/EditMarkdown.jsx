@@ -17,9 +17,12 @@ import MarkdownEditor from '../MarkdownEditor';
 
 import styles from './EditMarkdown.module.scss';
 
-const MAX_LENGTH = 1048576;
+// Images are now stored as separate files (not inline base64), so we maintain
+// the original 1MB limit for text content. Legacy base64 images will be migrated
+// to file storage automatically on save.
+const MAX_LENGTH = 1048576; // 1MB
 
-const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }) => {
+const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, onClose }) => {
   const defaultMode = useSelector((state) => selectors.selectCurrentUser(state).defaultEditorMode);
 
   const dispatch = useDispatch();
@@ -44,14 +47,19 @@ const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }
   const isExceeded = value.length > MAX_LENGTH;
 
   const submit = useCallback(() => {
-    const cleanValue = value.trim() || null;
+    // Get the current value directly from the editor to ensure we have the latest content
+    // This is important because the editor might not have fired change events yet
+    // after async operations like image uploads
+    const currentValue = fieldRef.current?.getValue ? fieldRef.current.getValue() : value;
+    const cleanValue = currentValue.trim() || null;
 
-    if (!isExceeded && cleanValue !== defaultValue) {
+    // Always allow update - server will migrate base64 images to files
+    if (cleanValue !== defaultValue) {
       onUpdate(cleanValue);
     }
 
-    onClose(isExceeded ? cleanValue : null);
-  }, [onUpdate, onClose, defaultValue, value, isExceeded]);
+    onClose(null);
+  }, [onUpdate, onClose, defaultValue, value]);
 
   const handleChange = useCallback((nextValue) => {
     setValue(nextValue);
@@ -84,7 +92,8 @@ const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }
       <MarkdownEditor
         {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
         ref={fieldRef}
-        defaultValue={value}
+        cardId={cardId}
+        defaultValue={draftValue || defaultValue || ''}
         defaultMode={defaultMode}
         isError={isExceeded}
         onChange={handleChange}
@@ -98,15 +107,15 @@ const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }
             {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
             positive
             ref={handleSubmitButtonRef}
-            content={
-              isExceeded
-                ? t('common.contentExceedsLimit', {
-                    limit: '1MB',
-                  })
-                : t('action.save')
-            }
-            disabled={isExceeded}
+            content={t('action.save')}
           />
+          {isExceeded && (
+            <span className={styles.warning}>
+              {t('common.contentExceedsLimit', {
+                limit: '1MB',
+              })}
+            </span>
+          )}
           <Button
             {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
             ref={handleCancelButtonRef}
@@ -121,6 +130,7 @@ const EditMarkdown = React.memo(({ defaultValue, draftValue, onUpdate, onClose }
 });
 
 EditMarkdown.propTypes = {
+  cardId: PropTypes.string,
   defaultValue: PropTypes.string,
   draftValue: PropTypes.string,
   // placeholder: PropTypes.string.isRequired, // TODO: remove?
@@ -129,6 +139,7 @@ EditMarkdown.propTypes = {
 };
 
 EditMarkdown.defaultProps = {
+  cardId: undefined,
   defaultValue: undefined,
   draftValue: undefined,
 };

@@ -155,6 +155,14 @@ module.exports = {
 
     card.isSubscribed = await sails.helpers.users.isCardSubscriber(currentUser.id, card.id);
 
+    // Convert inline:// URLs to HTTP URLs for rendering
+    if (card.description && card.description.includes('inline://')) {
+      card.description = card.description.replace(
+        /inline:\/\/([\w-]+)/g,
+        (match, contentId) => `/api/inline-attachments/${contentId}`,
+      );
+    }
+
     const users = card.creatorUserId ? await User.qm.getByIds([card.creatorUserId]) : [];
     const cardMemberships = await CardMembership.qm.getByCardId(card.id);
     const cardLabels = await CardLabel.qm.getByCardId(card.id);

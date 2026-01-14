@@ -200,6 +200,69 @@ class S3FileManager {
   buildUrl(filePathSegment) {
     return `${sails.hooks.s3.getBaseUrl()}/${filePathSegment}`;
   }
+
+  // Card Content Methods
+
+  /**
+   * Save card content to S3 storage
+   * @param {string} cardId - Card ID
+   * @param {string} content - Content to save
+   * @param {number} version - Content version
+   * @returns {Promise<string>} S3 key
+   */
+  async saveCardContent(cardId, content, version) {
+    const filePathSegment = `private/card-content/${cardId}/v${version}.md`;
+    const buffer = Buffer.from(content, 'utf-8');
+
+    await this.save(filePathSegment, buffer, 'text/markdown');
+    return filePathSegment;
+  }
+
+  /**
+   * Read card content from S3 storage
+   * @param {string} contentRef - Content reference (S3 key)
+   * @returns {Promise<string>} Content as string
+   */
+  async readCardContent(contentRef) {
+    const stream = await this.read(contentRef);
+    const chunks = [];
+
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks).toString('utf-8');
+  }
+
+  /**
+   * Save inline attachment to S3 storage
+   * @param {string} uploadedFileId - Uploaded file ID
+   * @param {string} filename - Original filename
+   * @param {Buffer} buffer - File buffer
+   * @param {string} contentType - MIME type
+   * @returns {Promise<string>} S3 key
+   */
+  async saveInlineAttachment(uploadedFileId, filename, buffer, contentType) {
+    const filePathSegment = `private/inline-attachments/${uploadedFileId}/${filename}`;
+    await this.save(filePathSegment, buffer, contentType);
+    return filePathSegment;
+  }
+
+  /**
+   * Read inline attachment from S3 storage
+   * @param {string} filePathSegment - S3 key
+   * @returns {Promise<Buffer>} File buffer
+   */
+  async readInlineAttachment(filePathSegment) {
+    const stream = await this.read(filePathSegment);
+    const chunks = [];
+
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks);
+  }
 }
 
 module.exports = S3FileManager;

@@ -115,6 +115,72 @@ class LocalFileManager {
   buildUrl(filePathSegment) {
     return `${sails.config.custom.baseUrl}/${filePathSegment.replace(PATH_SEGMENT_TO_URL_REPLACE_REGEX, '')}`;
   }
+
+  // Card Content Methods
+
+  /**
+   * Save card content to file storage
+   * @param {string} cardId - Card ID
+   * @param {string} content - Content to save
+   * @param {number} version - Content version
+   * @returns {Promise<string>} File path segment
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async saveCardContent(cardId, content, version) {
+    const filePathSegment = `private/card-content/${cardId}/v${version}.md`;
+    const buffer = Buffer.from(content, 'utf-8');
+
+    await this.save(filePathSegment, buffer);
+    return filePathSegment;
+  }
+
+  /**
+   * Read card content from file storage
+   * @param {string} contentRef - Content reference (file path)
+   * @returns {Promise<string>} Content as string
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async readCardContent(contentRef) {
+    const stream = await this.read(contentRef);
+    const chunks = [];
+
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks).toString('utf-8');
+  }
+
+  /**
+   * Save inline attachment to file storage
+   * @param {string} uploadedFileId - Uploaded file ID
+   * @param {string} filename - Original filename
+   * @param {Buffer} buffer - File buffer
+   * @returns {Promise<string>} File path segment
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async saveInlineAttachment(uploadedFileId, filename, buffer) {
+    const filePathSegment = `private/inline-attachments/${uploadedFileId}/${filename}`;
+    await this.save(filePathSegment, buffer);
+    return filePathSegment;
+  }
+
+  /**
+   * Read inline attachment from file storage
+   * @param {string} filePathSegment - File path segment
+   * @returns {Promise<Buffer>} File buffer
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async readInlineAttachment(filePathSegment) {
+    const stream = await this.read(filePathSegment);
+    const chunks = [];
+
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks);
+  }
 }
 
 module.exports = LocalFileManager;

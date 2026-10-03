@@ -74,6 +74,13 @@ const handleCardUpdate = (card) => ({
   },
 });
 
+const handleCardContentUpdate = (cardId) => ({
+  type: EntryActionTypes.CARD_CONTENT_UPDATE_HANDLE,
+  payload: {
+    cardId,
+  },
+});
+
 const moveCard = (id, listId, index = 0) => ({
   type: EntryActionTypes.CARD_MOVE,
   payload: {
@@ -217,6 +224,7 @@ export default {
   updateCard,
   updateCurrentCard,
   handleCardUpdate,
+  handleCardContentUpdate,
   moveCard,
   moveCurrentCard,
   moveCardToArchive,

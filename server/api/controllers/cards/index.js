@@ -278,6 +278,15 @@ module.exports = {
     cards.forEach((card) => {
       // eslint-disable-next-line no-param-reassign
       card.isSubscribed = isSubscribedByCardId[card.id] || false;
+
+      // Convert inline:// URLs to HTTP URLs for rendering
+      if (card.description && card.description.includes('inline://')) {
+        // eslint-disable-next-line no-param-reassign
+        card.description = card.description.replace(
+          /inline:\/\/([\w-]+)/g,
+          (match, contentId) => `/api/inline-attachments/${contentId}`,
+        );
+      }
     });
 
     return {

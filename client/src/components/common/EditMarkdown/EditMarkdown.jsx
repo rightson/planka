@@ -13,14 +13,15 @@ import { useClickAwayListener } from '../../../lib/hooks';
 import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import { useNestedRef } from '../../../hooks';
+import getUtf8ByteLength from '../../../utils/get-utf8-byte-length';
 import MarkdownEditor from '../MarkdownEditor';
 
 import styles from './EditMarkdown.module.scss';
 
-// Images are now stored as separate files (not inline base64), so we maintain
-// the original 1MB limit for text content. Legacy base64 images will be migrated
-// to file storage automatically on save.
-const MAX_LENGTH = 1048576; // 1MB
+// The current editor and API still hold the complete string in memory. Keep a
+// bounded default while allowing substantially larger text than the legacy 1MB
+// description limit. The server enforces the same default in bytes.
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, onClose }) => {
   const defaultMode = useSelector((state) => selectors.selectCurrentUser(state).defaultEditorMode);
@@ -44,13 +45,19 @@ const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, o
     [dispatch],
   );
 
-  const isExceeded = value.length > MAX_LENGTH;
+  const isExceeded = getUtf8ByteLength(value) > MAX_SIZE;
 
   const submit = useCallback(() => {
     // Get the current value directly from the editor to ensure we have the latest content
     // This is important because the editor might not have fired change events yet
     // after async operations like image uploads
     const currentValue = fieldRef.current?.getValue ? fieldRef.current.getValue() : value;
+
+    if (getUtf8ByteLength(currentValue) > MAX_SIZE) {
+      fieldRef.current?.focus();
+      return;
+    }
+
     const cleanValue = currentValue.trim() || null;
 
     // Always allow update - server will migrate base64 images to files
@@ -107,12 +114,19 @@ const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, o
             {...clickAwayProps} // eslint-disable-line react/jsx-props-no-spreading
             positive
             ref={handleSubmitButtonRef}
-            content={t('action.save')}
+            content={
+              isExceeded
+                ? t('common.contentExceedsLimit', {
+                    limit: '10MB',
+                  })
+                : t('action.save')
+            }
+            disabled={isExceeded}
           />
           {isExceeded && (
             <span className={styles.warning}>
               {t('common.contentExceedsLimit', {
-                limit: '1MB',
+                limit: '10MB',
               })}
             </span>
           )}

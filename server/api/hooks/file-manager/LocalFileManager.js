@@ -7,6 +7,7 @@ const fs = require('fs');
 const fse = require('fs-extra');
 const path = require('path');
 const { pipeline } = require('stream/promises');
+const { Readable } = require('stream');
 const { rimraf } = require('rimraf');
 
 const PATH_SEGMENT_TO_URL_REPLACE_REGEX = /(public|private)\//;
@@ -114,6 +115,71 @@ class LocalFileManager {
   // eslint-disable-next-line class-methods-use-this
   buildUrl(filePathSegment) {
     return `${sails.config.custom.baseUrl}/${filePathSegment.replace(PATH_SEGMENT_TO_URL_REPLACE_REGEX, '')}`;
+  }
+
+  // Card Content Methods
+
+  /**
+   * Save card content to file storage
+   * @param {string} cardId - Card ID
+   * @param {string} content - Content to save
+   * @param {number} version - Content version
+   * @param {string} contentHash - SHA256 content hash
+   * @returns {Promise<string>} File path segment
+   */
+  async saveCardContent(cardId, content, version, contentHash) {
+    const filePathSegment = `private/card-content/${cardId}/v${version}-${contentHash}.md`;
+    const buffer = Buffer.from(content, 'utf-8');
+
+    await this.save(filePathSegment, Readable.from(buffer));
+    return filePathSegment;
+  }
+
+  /**
+   * Read card content from file storage
+   * @param {string} contentRef - Content reference (file path)
+   * @returns {Promise<string>} Content as string
+   */
+  async readCardContent(contentRef) {
+    const stream = await this.read(contentRef);
+    const chunks = [];
+
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks).toString('utf-8');
+  }
+
+  /**
+   * Save inline attachment to file storage
+   * @param {string} uploadedFileId - Uploaded file ID
+   * @param {string} filename - Original filename
+   * @param {Buffer} buffer - File buffer
+   * @returns {Promise<string>} File path segment
+   */
+  async saveInlineAttachment(uploadedFileId, filename, buffer) {
+    const filePathSegment = `private/inline-attachments/${uploadedFileId}/${filename}`;
+    await this.save(filePathSegment, Readable.from(buffer));
+    return filePathSegment;
+  }
+
+  /**
+   * Read inline attachment from file storage
+   * @param {string} filePathSegment - File path segment
+   * @returns {Promise<Buffer>} File buffer
+   */
+  async readInlineAttachment(filePathSegment) {
+    const stream = await this.read(filePathSegment);
+    const chunks = [];
+
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks);
   }
 }
 

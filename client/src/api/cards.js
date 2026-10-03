@@ -66,21 +66,66 @@ const createCard = (listId, data, headers) =>
     item: transformCard(body.item),
   }));
 
-const getCard = (id, headers) =>
-  socket.get(`/cards/${id}`, undefined, headers).then((body) => ({
+const transformCardContent = (content) =>
+  content.replace(
+    /inline:\/\/([\w-]+)/g,
+    (match, contentId) => `/api/inline-attachments/${contentId}`,
+  );
+
+const getCardContent = (id, headers) =>
+  socket.get(`/cards/${id}/content`, undefined, headers).then((body) => ({
     ...body,
-    item: transformCard(body.item),
-    included: {
-      ...body.included,
-      attachments: body.included.attachments.map(transformAttachment),
-    },
+    content: transformCardContent(body.content),
   }));
 
-const updateCard = (id, data, headers) =>
-  socket.patch(`/cards/${id}`, transformCardData(data), headers).then((body) => ({
+const getCard = (id, headers) =>
+  Promise.all([socket.get(`/cards/${id}`, undefined, headers), getCardContent(id, headers)]).then(
+    ([body, cardContent]) => ({
+      ...body,
+      item: transformCard({
+        ...body.item,
+        description: cardContent.content,
+      }),
+      included: {
+        ...body.included,
+        attachments: body.included.attachments.map(transformAttachment),
+      },
+    }),
+  );
+
+const updateCardContent = (id, data, headers) => socket.put(`/cards/${id}/content`, data, headers);
+
+const updateCard = async (id, data, headers) => {
+  const transformedData = transformCardData(data);
+  const hasDescription = Object.prototype.hasOwnProperty.call(transformedData, 'description');
+  const cardData = hasDescription ? omit(transformedData, 'description') : transformedData;
+
+  if (hasDescription) {
+    await updateCardContent(
+      id,
+      {
+        content: transformedData.description || '',
+        contentType: 'markdown',
+      },
+      headers,
+    );
+  }
+
+  const body =
+    Object.keys(cardData).length > 0
+      ? await socket.patch(`/cards/${id}`, cardData, headers)
+      : await socket.get(`/cards/${id}`, undefined, headers);
+
+  return {
     ...body,
-    item: transformCard(body.item),
-  }));
+    item: transformCard({
+      ...body.item,
+      ...(hasDescription && {
+        description: transformedData.description || '',
+      }),
+    }),
+  };
+};
 
 const duplicateCard = (id, data, headers) =>
   socket.post(`/cards/${id}/duplicate`, data, headers).then((body) => ({
@@ -136,7 +181,9 @@ export default {
   getCards,
   createCard,
   getCard,
+  getCardContent,
   updateCard,
+  updateCardContent,
   duplicateCard,
   readCardNotifications,
   deleteCard,

@@ -352,6 +352,28 @@ export function* handleCardUpdate(card) {
   }
 }
 
+export function* handleCardContentUpdate(cardId) {
+  const { cardId: currentCardId } = yield select(selectors.selectPath);
+
+  if (cardId !== currentCardId) {
+    return;
+  }
+
+  let content;
+  try {
+    ({ content } = yield call(request, api.getCardContent, cardId));
+  } catch {
+    return;
+  }
+
+  yield put(
+    actions.updateCard.success({
+      id: cardId,
+      description: content,
+    }),
+  );
+}
+
 export function* moveCard(id, listId, index) {
   const data = {};
   if (listId) {
@@ -764,6 +786,7 @@ export default {
   updateCard,
   updateCurrentCard,
   handleCardUpdate,
+  handleCardContentUpdate,
   moveCard,
   moveCurrentCard,
   moveCardToArchive,

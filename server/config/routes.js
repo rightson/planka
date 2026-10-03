@@ -161,6 +161,11 @@ module.exports.routes = {
   'POST /api/cards/:cardId/inline-images': 'inline-images/upload',
   'GET /api/inline-images/:id': 'inline-images/download',
 
+  'GET /api/cards/:cardId/content': 'card-content/show',
+  'PUT /api/cards/:cardId/content': 'card-content/update',
+  'GET /api/cards/:cardId/inline-attachments': 'inline-attachments/index',
+  'POST /api/cards/:cardId/inline-attachments': 'inline-attachments/create',
+
   'POST /api/boards/:boardId/custom-field-groups': 'custom-field-groups/create-in-board',
   'POST /api/cards/:cardId/custom-field-groups': 'custom-field-groups/create-in-card',
   'GET /api/custom-field-groups/:id': 'custom-field-groups/show',
@@ -183,6 +188,8 @@ module.exports.routes = {
   'POST /api/cards/:cardId/comments': 'comments/create',
   'PATCH /api/comments/:id': 'comments/update',
   'DELETE /api/comments/:id': 'comments/delete',
+
+  'GET /api/inline-attachments/:contentId': 'inline-attachments/show',
 
   'GET /api/boards/:boardId/actions': 'actions/index-in-board',
   'GET /api/cards/:cardId/actions': 'actions/index-in-card',

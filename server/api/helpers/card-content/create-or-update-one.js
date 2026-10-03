@@ -147,12 +147,13 @@ module.exports = {
 
 /**
  * Extract inline attachment references from content
- * Looks for inline:// URLs in markdown
+ * Looks for canonical inline:// URLs and the authenticated HTTP URLs that the
+ * client receives for rendering.
  * @param {string} content - Markdown content
  * @returns {Array<{contentId: string, id: string}>} - Array of inline attachment references
  */
 function extractInlineAttachmentRefs(content) {
-  const regex = /inline:\/\/([\w-]+)/g;
+  const regex = /(?:inline:\/\/|\/api\/inline-attachments\/)([\w-]+)/g;
   const refs = [];
   let match;
 

@@ -65,6 +65,18 @@ const chain = (value) => ({
   assert.deepEqual(values.inlineAttachmentIds, ['987'], 'store database IDs, not content IDs');
   assert.equal(activity.at(-1).state.isActive, true);
   activity.length = 0;
+  await save.fn({
+    cardId: '1',
+    content: '![x](/api/inline-attachments/img)',
+    contentType: 'markdown',
+  });
+  assert.deepEqual(
+    values.inlineAttachmentIds,
+    ['987'],
+    'renderable attachment URLs retain reference tracking',
+  );
+  assert.equal(activity.at(-1).state.isActive, true);
+  activity.length = 0;
   await save.fn({ cardId: '1', content: 'no images', contentType: 'markdown' });
   assert.equal(activity.length, 1);
   assert.equal(activity[0].state.isActive, false, 'removing the last image clears activity');

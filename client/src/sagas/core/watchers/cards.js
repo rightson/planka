@@ -39,6 +39,9 @@ export default function* cardsWatchers() {
     takeEvery(EntryActionTypes.CARD_UPDATE_HANDLE, ({ payload: { card } }) =>
       services.handleCardUpdate(card),
     ),
+    takeEvery(EntryActionTypes.CARD_CONTENT_UPDATE_HANDLE, ({ payload: { cardId } }) =>
+      services.handleCardContentUpdate(cardId),
+    ),
     takeEvery(EntryActionTypes.CARD_MOVE, ({ payload: { id, listId, index } }) =>
       services.moveCard(id, listId, index),
     ),

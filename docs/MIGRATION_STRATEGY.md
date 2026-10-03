@@ -26,7 +26,7 @@ if (contentSize <= inlineThreshold) {
   // ✅ SQL searchable
 } else {
   // Store in files (contentRef)
-  // ✅ Scalable (up to 10GB+)
+  // ✅ Keeps larger content out of the card row
   // ✅ No DB bloat
   // ✅ S3 compatible
 }

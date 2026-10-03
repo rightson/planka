@@ -113,8 +113,8 @@ CARD_CONTENT_EXTERNAL_THRESHOLD=1MB
 # Enable auto-promotion (default: true)
 CARD_CONTENT_AUTO_PROMOTE=true
 
-# Maximum content size (default: 10GB)
-MAX_CARD_CONTENT_SIZE=10GB
+# Maximum content size (default: 10MB)
+MAX_CARD_CONTENT_SIZE=10MB
 ```
 
 ### Custom Configuration
@@ -133,7 +133,7 @@ module.exports.custom = {
     autoPromote: true,
 
     // Maximum content size
-    maxSize: 10 * 1024 * 1024 * 1024,  // 10GB
+    maxSize: 10 * 1024 * 1024,  // 10MB
   }
 };
 ```
@@ -337,8 +337,8 @@ Benefits for 80% of cards (inline):
 
 Benefits for 20% of cards (external):
 ✅ No database bloat
-✅ Scalable to 10GB+
-✅ Streaming support
+✅ Keeps larger content out of card rows
+⚠️ Content is still materialized in memory; streaming is not implemented
 ✅ S3 integration
 ```
 

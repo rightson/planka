@@ -4,7 +4,7 @@ This directory contains documentation for the Large Card Content System feature.
 
 ## Overview
 
-The Large Card Content System enables Planka cards to support **10GB+ content** (vs the current 1MB limit) through an intelligent hybrid storage strategy.
+The Large Card Content System moves card text beyond the legacy 1MB description field through an intelligent hybrid storage strategy. The current editor and API default to a bounded 10MB maximum because they materialize the full document in memory.
 
 ## Migration Path
 
@@ -68,8 +68,8 @@ ENABLE_LARGE_CARD_CONTENT=true
 CARD_CONTENT_INLINE_THRESHOLD=1MB
 CARD_CONTENT_EXTERNAL_THRESHOLD=1MB
 
-# Limits (default: 10GB max, unlimited versions)
-MAX_CARD_CONTENT_SIZE=10GB
+# Limits (default: 10MB max, unlimited versions)
+MAX_CARD_CONTENT_SIZE=10MB
 CARD_CONTENT_VERSIONS_LIMIT=0
 
 # Auto-promotion (default: enabled)

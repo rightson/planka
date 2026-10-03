@@ -74,7 +74,7 @@ module.exports = {
     text: {
       type: 'string',
       isNotEmptyString: true,
-      maxLength: 10 * 1024 * 1024 * 1024, // 10GB
+      maxLength: 1048576,
     },
   },
 

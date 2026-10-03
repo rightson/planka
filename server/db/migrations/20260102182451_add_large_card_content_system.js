@@ -6,7 +6,7 @@
 /**
  * Migration: Large Card Content System
  *
- * This migration adds support for 10GB+ card content by:
+ * This migration adds hybrid storage for card content by:
  * 1. Creating card_content table for file-based content storage
  * 2. Creating inline_attachment table for pasted images
  * 3. Adding migration tracking to card table

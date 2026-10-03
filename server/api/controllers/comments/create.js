@@ -75,7 +75,7 @@ module.exports = {
     },
     text: {
       type: 'string',
-      maxLength: 10 * 1024 * 1024 * 1024, // 10GB
+      maxLength: 1048576,
       required: true,
     },
   },

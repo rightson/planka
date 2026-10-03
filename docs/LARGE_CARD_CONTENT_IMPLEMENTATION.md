@@ -3,7 +3,7 @@
 ## Overview
 
 This document summarizes the implementation of the Large Card Content System for Planka, which enables:
-- **10GB+ content** per card (vs current 1MB limit)
+- A **10MB bounded default** per card (vs the legacy 1MB description field), configurable for deployments that validate a different limit
 - Separation of **inline pasted images** from card description text
 - Distinction between **inline attachments** and user-uploaded attachments
 - **Seamless migration** from the current base64-embedded system
@@ -61,7 +61,7 @@ This document summarizes the implementation of the Large Card Content System for
 
 #### 7. Configuration
 - ✅ `/server/config/custom.js` - Added configuration options:
-  - `maxCardContentSize` - Default 10GB (configurable via `MAX_CARD_CONTENT_SIZE`)
+  - `maxCardContentSize` - Default 10MB (configurable via `MAX_CARD_CONTENT_SIZE`)
   - `enableLargeCardContent` - Feature flag (default: enabled)
   - `cardContentVersionsLimit` - Version history limit (default: unlimited)
 
@@ -266,8 +266,8 @@ npm run db:upgrade-card -- --card-id=123
 ### Environment Variables
 
 ```bash
-# Maximum card content size (default: 10GB)
-MAX_CARD_CONTENT_SIZE=10GB
+# Maximum card content size (default: 10MB)
+MAX_CARD_CONTENT_SIZE=10MB
 
 # Enable/disable large card content system (default: true)
 ENABLE_LARGE_CARD_CONTENT=true
@@ -364,15 +364,14 @@ async function cleanupInactiveInlineAttachments() {
 
 ### 🎯 Priority Next Actions
 
-1. **Add routes** for new endpoints
-2. **Run database migration** on development environment
-3. **Test API endpoints** with Postman/curl
-4. **Implement client-side** support
-5. **Run migration script** on test data
+1. **Validate migrations and API flows** against a real PostgreSQL instance
+2. **Validate external content and inline attachments** against local storage and S3
+3. **Run capacity tests** before raising the bounded default
+4. **Implement retention cleanup** for old content versions and inactive attachments
 
 ## Benefits Achieved
 
-✅ **Scalability**: Support 10GB+ content (10,000x improvement)
+✅ **Scalability**: Keeps content above the inline threshold out of card rows, with a safe 10MB default
 ✅ **Performance**: Content stored in files, not database
 ✅ **Organization**: Clear separation between inline and uploaded attachments
 ✅ **Migration**: Automated with rollback capability
@@ -402,17 +401,17 @@ async function cleanupInactiveInlineAttachments() {
 
 ## Known Limitations
 
-1. **Routes not yet added**: Need to add routes in config/routes.js
-2. **Query methods not yet implemented**: Need to add qm methods for new models
-3. **No client-side implementation yet**: MarkdownEditor not updated
-4. **No tests yet**: Unit and integration tests needed
-5. **No cleanup job**: Background job for deleting inactive attachments not implemented
+1. **In-memory request path**: The editor and API materialize the complete content string, so the default remains 10MB
+2. **Integration coverage**: Real PostgreSQL and S3 validation is still required before production rollout
+3. **Two inline-image models**: Legacy `InlineImage` and the new `InlineAttachment` coexist during migration
+4. **Cleanup**: Destructive orphan cleanup remains disabled until reference tracking is race-safe
+5. **Version retention**: Old content-version pruning is not implemented yet
 
 ## Performance Considerations
 
 - Content cached for 10 minutes (to be implemented)
 - Lazy loading: Content not loaded with card list
-- Streaming support for large content (>10MB)
+- Streaming is not implemented; content is currently read and written as a complete string
 - Deduplication planned for identical images
 
 ## Security Considerations

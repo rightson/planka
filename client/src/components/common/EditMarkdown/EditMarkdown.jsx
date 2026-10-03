@@ -13,6 +13,7 @@ import { useClickAwayListener } from '../../../lib/hooks';
 import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import { useNestedRef } from '../../../hooks';
+import getUtf8ByteLength from '../../../utils/get-utf8-byte-length';
 import MarkdownEditor from '../MarkdownEditor';
 
 import styles from './EditMarkdown.module.scss';
@@ -20,7 +21,7 @@ import styles from './EditMarkdown.module.scss';
 // The current editor and API still hold the complete string in memory. Keep a
 // bounded default while allowing substantially larger text than the legacy 1MB
 // description limit. The server enforces the same default in bytes.
-const MAX_LENGTH = 10 * 1024 * 1024; // 10MB
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, onClose }) => {
   const defaultMode = useSelector((state) => selectors.selectCurrentUser(state).defaultEditorMode);
@@ -44,13 +45,19 @@ const EditMarkdown = React.memo(({ cardId, defaultValue, draftValue, onUpdate, o
     [dispatch],
   );
 
-  const isExceeded = value.length > MAX_LENGTH;
+  const isExceeded = getUtf8ByteLength(value) > MAX_SIZE;
 
   const submit = useCallback(() => {
     // Get the current value directly from the editor to ensure we have the latest content
     // This is important because the editor might not have fired change events yet
     // after async operations like image uploads
     const currentValue = fieldRef.current?.getValue ? fieldRef.current.getValue() : value;
+
+    if (getUtf8ByteLength(currentValue) > MAX_SIZE) {
+      fieldRef.current?.focus();
+      return;
+    }
+
     const cleanValue = currentValue.trim() || null;
 
     // Always allow update - server will migrate base64 images to files

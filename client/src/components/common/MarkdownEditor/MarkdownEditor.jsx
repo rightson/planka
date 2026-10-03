@@ -3,7 +3,7 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import {
@@ -74,26 +74,22 @@ const createFileUploadHandler = (cardId) => async (file) => {
 
 const MarkdownEditor = React.forwardRef(
   (
-    { cardId, defaultValue, defaultMode, isError, onChange, onSubmit, onCancel, onModeChange, ...props },
+    {
+      cardId,
+      defaultValue,
+      defaultMode,
+      isError,
+      onChange,
+      onSubmit,
+      onCancel,
+      onModeChange,
+      ...props
+    },
     ref,
   ) => {
     const wrapperRef = useRef(null);
-    const editorRef = useRef(null);
 
-    const handleWrapperRef = useCallback(
-      (element) => {
-        wrapperRef.current = element;
-
-        if (typeof ref === 'function') {
-          ref(element);
-        } else if (ref) {
-          ref.current = element; // eslint-disable-line no-param-reassign
-        }
-      },
-      [ref],
-    );
-
-    const fileUploadHandler = useCallback(createFileUploadHandler(cardId), [cardId]);
+    const fileUploadHandler = useMemo(() => createFileUploadHandler(cardId), [cardId]);
 
     const editor = useMarkdownEditor({
       md: {
@@ -120,9 +116,6 @@ const MarkdownEditor = React.forwardRef(
         mode: defaultMode,
       },
     });
-
-    // Store editor reference for parent access
-    editorRef.current = editor;
 
     useEffect(() => {
       const handleChange = () => {

@@ -159,6 +159,7 @@ module.exports.routes = {
   'DELETE /api/attachments/:id': 'attachments/delete',
 
   'POST /api/cards/:cardId/inline-images': 'inline-images/upload',
+  'GET /api/inline-images/:id': 'inline-images/download',
 
   'POST /api/boards/:boardId/custom-field-groups': 'custom-field-groups/create-in-board',
   'POST /api/cards/:cardId/custom-field-groups': 'custom-field-groups/create-in-card',

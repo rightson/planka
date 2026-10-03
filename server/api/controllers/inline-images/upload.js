@@ -88,7 +88,7 @@ const { idInput } = require('../../../utils/inputs');
 
 const Errors = {
   NOT_ENOUGH_RIGHTS: {
-  notEnoughRights: 'Not enough rights',
+    notEnoughRights: 'Not enough rights',
   },
   CARD_NOT_FOUND: {
     cardNotFound: 'Card not found',
@@ -137,7 +137,7 @@ module.exports = {
     const { currentUser } = this.req;
 
     // Get card and verify permissions
-    const { card, board } = await sails.helpers.cards
+    const { board } = await sails.helpers.cards
       .getPathToProjectById(inputs.cardId)
       .intercept('pathNotFound', () => Errors.CARD_NOT_FOUND);
 

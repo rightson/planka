@@ -26,5 +26,4 @@ exports.up = async (knex) => {
   });
 };
 
-exports.down = (knex) =>
-  knex.schema.dropTable('inline_image');
+exports.down = (knex) => knex.schema.dropTable('inline_image');

@@ -5,6 +5,8 @@ const path = require('node:path');
 const helper = require('../../api/helpers/inline-images/process-uploaded-file');
 const cleanup = require('../../api/helpers/inline-images/cleanup-orphaned');
 const model = require('../../api/models/InlineImage');
+const download = require('../../api/controllers/inline-images/download');
+const { Readable } = require('node:stream');
 
 function validation() {
   const promise = Promise.resolve({ extension: 'png' });
@@ -82,6 +84,35 @@ function validation() {
     assert.equal(report.orphaned, 1);
     assert.equal(report.deleted, 0);
     assert.equal(events.length, before);
+    assert.equal(require('../../config/routes').routes['GET /api/inline-images/:id'],
+      'inline-images/download');
+    assert.ok(require('../../config/policies').policies['*'].includes('is-authenticated'));
+    InlineImage.findOne = async () => ({ id: '123', cardId: '1', uploadedFileId: '456', filename: 'image.png' });
+    UploadedFile.findOne = async () => ({ mimeType: 'image/png', size: '1' });
+    sails.helpers.cards = { getPathToProjectById: () => {
+      const promise = Promise.resolve({ board: { id: 'board' } });
+      promise.intercept = () => promise;
+      return promise;
+    } };
+    let member = true;
+    let reads = 0;
+    global.BoardMembership = { qm: { getOneByBoardIdAndUserId: async () => member ? {} : null } };
+    sails.hooks['file-manager'].getInstance = () => ({ read: async (name) => {
+      reads += 1;
+      assert.equal(name, 'private/inline-images/image.png');
+      return Readable.from(Buffer.from('x'));
+    } });
+    const headers = {};
+    const context = { req: { currentUser: { id: '7' } }, res: { set: (key, value) => { headers[key] = value; } } };
+    const stream = await download.fn.call(context, { id: '123' }, exits);
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    assert.equal(Buffer.concat(chunks).toString(), 'x');
+    assert.match(headers['Cache-Control'], /^private/);
+    member = false;
+    await assert.rejects(download.fn.call(context, { id: '123' }, exits),
+      (error) => Boolean(error.notEnoughRights));
+    assert.equal(reads, 1, 'non-members cannot read stored files');
     console.log('PASS: valid ORM paths, non-null URL, temp cleanup, failure rollback, safe orphan reporting');
   } finally {
     await fs.rm(directory, { recursive: true, force: true });

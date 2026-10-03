@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const path = require('path');
 
 /**
  * Generate a unique, URL-safe filename for inline images
@@ -31,10 +30,7 @@ module.exports = {
     const { cardId, extension } = inputs;
 
     // Generate ISO 8601 timestamp without colons (URL-safe)
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/:/g, '-')
-      .replace(/\./g, '-');
+    const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
 
     // Generate 8-character crypto-random suffix
     const randomSuffix = crypto.randomBytes(4).toString('hex');

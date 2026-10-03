@@ -1,5 +1,3 @@
-const path = require('path');
-
 // Allowed image MIME types
 const ALLOWED_MIME_TYPES = [
   'image/png',

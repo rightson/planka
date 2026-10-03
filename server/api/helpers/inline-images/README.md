@@ -1,3 +1,9 @@
+> Inline images are stored in `private/inline-images` and served through
+> authenticated `/api/inline-images/:id` endpoints with board access checks.
+> The scheduled cleanup currently reports potential orphans only. A missing
+> saved description reference does not prove that an unsaved editor image can
+> be deleted; destructive cleanup is disabled until reference tracking is safe.
+
 # Inline Images Storage Architecture
 
 ## Overview
@@ -8,9 +14,9 @@ This feature transforms image pasting in card descriptions from base64 data URLs
 
 ### 1. Storage Locations
 
-- **Inline Images**: `public/uploads/` - Small images embedded in card descriptions
+- **Inline Images**: `private/inline-images/` - Small images embedded in card descriptions
   - Size limit: Respects global MAX_UPLOAD_FILE_SIZE (default 10MB if not set)
-  - Publicly accessible for display in markdown
+  - Served through authenticated endpoints for display in markdown
   - Examples: Screenshots, diagrams pasted into descriptions
 
 - **File Attachments**: `private/attachments/` - Large file attachments

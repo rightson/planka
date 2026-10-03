@@ -3,10 +3,7 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-const crypto = require('crypto');
-const path = require('path');
 const { Readable } = require('stream');
-const { rimraf } = require('rimraf');
 const { fileTypeFromBuffer } = require('file-type');
 
 /**
@@ -41,10 +38,11 @@ module.exports = {
           SELECT FROM information_schema.tables
           WHERE table_schema = 'public'
           AND table_name = 'inline_image'
-        );`
+        );`,
       );
 
-      const exists = tableExists?.rows?.[0]?.exists;
+      const exists =
+        tableExists && tableExists.rows && tableExists.rows[0] && tableExists.rows[0].exists;
       if (!exists) {
         sails.log.debug('Skipping base64 migration: inline_image table does not exist');
         return exits.success(markdown);
@@ -91,7 +89,8 @@ module.exports = {
 
     // Regex to match markdown images with data URLs
     // Matches: ![alt text](data:image/png;base64,...)
-    const base64ImageRegex = /!\[([^\]]*)\]\(data:image\/(png|jpeg|jpg|gif|webp|avif);base64,([^)]+)\)/g;
+    const base64ImageRegex =
+      /!\[([^\]]*)\]\(data:image\/(png|jpeg|jpg|gif|webp|avif);base64,([^)]+)\)/g;
 
     let updatedMarkdown = markdown;
     const matches = [...markdown.matchAll(base64ImageRegex)];
@@ -104,7 +103,8 @@ module.exports = {
     sails.log.info(`Migrating ${matches.length} base64 images for card ${cardId}`);
 
     // Process each base64 image
-    for (const match of matches) {
+    await matches.reduce(async (previous, match) => {
+      await previous;
       try {
         const [fullMatch, altText, mimeTypeExt, base64Data] = match;
         const mimeType = `image/${mimeTypeExt === 'jpg' ? 'jpeg' : mimeTypeExt}`;
@@ -116,12 +116,12 @@ module.exports = {
         // Validate size
         if (size > maxSize) {
           sails.log.warn(`Skipping base64 image migration: size ${size} exceeds max ${maxSize}`);
-          continue; // Skip this image, keep as base64
+          return; // Skip this image, keep as base64
         }
 
         // Validate MIME type using buffer detection for accuracy
         const detectedType = await fileTypeFromBuffer(buffer);
-        const finalMimeType = detectedType?.mime || mimeType;
+        const finalMimeType = (detectedType && detectedType.mime) || mimeType;
 
         // Validate using helper
         let validation;
@@ -133,7 +133,7 @@ module.exports = {
           });
         } catch (error) {
           sails.log.warn(`Skipping invalid base64 image: ${error.message}`);
-          continue; // Skip invalid images
+          return; // Skip invalid images
         }
 
         const { extension } = validation;
@@ -149,12 +149,6 @@ module.exports = {
           mimeType: finalMimeType,
           size,
           type: UploadedFile.Types.ATTACHMENT,
-        });
-
-        // Increment reference count
-        await UploadedFile.qm.update({
-          id: uploadedFileId,
-        }, {
           referencesTotal: 1,
         });
 
@@ -166,32 +160,32 @@ module.exports = {
         } catch (saveError) {
           sails.log.error('Failed to save migrated inline image:', saveError);
           // Clean up UploadedFile record
-          await UploadedFile.qm.destroy({ id: uploadedFileId });
-          continue; // Skip this image, keep as base64
+          await UploadedFile.qm.deleteOne({ id: uploadedFileId });
+          return; // Skip this image, keep as base64
         }
 
         // Create InlineImage record for tracking
         let inlineImage;
         try {
-          inlineImage = await InlineImage.qm.create({
+          inlineImage = await InlineImage.create({
             cardId,
             uploadedFileId,
             filename,
-            markdownPath: null, // Will be generated from ID
+            markdownPath: `pending/${filename}`, // Non-null until the authenticated ID URL is assigned
           }).fetch();
         } catch (recordError) {
           sails.log.error('Failed to create InlineImage record:', recordError);
           // Clean up file
           await fileManager.delete(filePathSegment);
-          await UploadedFile.qm.destroy({ id: uploadedFileId });
-          continue;
+          await UploadedFile.qm.deleteOne({ id: uploadedFileId });
+          return;
         }
 
         // Generate authenticated URL path using the inline image ID
         const markdownPath = `api/inline-images/${inlineImage.id}`;
 
         // Update the record with the markdown path
-        await InlineImage.qm.updateOne(inlineImage.id, { markdownPath });
+        await InlineImage.updateOne(inlineImage.id, { markdownPath });
 
         // Replace base64 data URL with file URL in markdown
         // Preserve alt text if it exists
@@ -203,7 +197,7 @@ module.exports = {
         sails.log.error('Error migrating base64 image:', error);
         // Continue with next image
       }
-    }
+    }, Promise.resolve());
 
     return exits.success(updatedMarkdown);
   },

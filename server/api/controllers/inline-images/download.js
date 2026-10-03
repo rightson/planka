@@ -68,7 +68,7 @@ module.exports = {
     const { currentUser } = this.req;
 
     // Get inline image record
-    const inlineImage = await InlineImage.qm.getOne(inputs.id);
+    const inlineImage = await InlineImage.findOne(inputs.id);
 
     if (!inlineImage) {
       throw Errors.INLINE_IMAGE_NOT_FOUND;
@@ -90,7 +90,7 @@ module.exports = {
     }
 
     // Get uploaded file info
-    const uploadedFile = await UploadedFile.qm.getOne(inlineImage.uploadedFileId);
+    const uploadedFile = await UploadedFile.findOne(inlineImage.uploadedFileId);
 
     if (!uploadedFile) {
       throw Errors.INLINE_IMAGE_NOT_FOUND;

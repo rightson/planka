@@ -68,7 +68,7 @@ module.exports = {
       content,
       contentType: cardContent ? cardContent.contentType : 'markdown',
       version: cardContent ? cardContent.version : 0,
-      size: cardContent ? cardContent.size : content ? Buffer.byteLength(content, 'utf-8') : 0,
+      size: cardContent ? cardContent.size : Buffer.byteLength(content || '', 'utf-8'),
       inlineAttachments,
       contentMigrated: card.contentMigrated,
     };

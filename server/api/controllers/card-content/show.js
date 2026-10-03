@@ -124,24 +124,18 @@ module.exports = {
     });
 
     // Present inline attachments with full data
-    const presentedInlineAttachments = [];
-    for (const inlineAttachment of contentData.inlineAttachments) {
+    const presentedInlineAttachments = contentData.inlineAttachments.map((inlineAttachment) => {
       const uploadedFile = inlineAttachment.uploadedFileId;
 
       const data = {
         uploadedFileId: uploadedFile.id,
-        filename: `inline-${inlineAttachment.contentId}`,
+        filename: inlineAttachment.filename,
         mimeType: uploadedFile.mimeType,
         size: uploadedFile.size,
       };
 
-      presentedInlineAttachments.push(
-        sails.helpers.inlineAttachments.presentOne({
-          inlineAttachment,
-          data,
-        }),
-      );
-    }
+      return sails.helpers.inlineAttachments.presentOne({ inlineAttachment, data });
+    });
 
     return {
       content: contentData.content,

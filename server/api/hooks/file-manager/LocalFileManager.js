@@ -124,11 +124,11 @@ class LocalFileManager {
    * @param {string} cardId - Card ID
    * @param {string} content - Content to save
    * @param {number} version - Content version
+   * @param {string} contentHash - SHA256 content hash
    * @returns {Promise<string>} File path segment
    */
-  // eslint-disable-next-line class-methods-use-this
-  async saveCardContent(cardId, content, version) {
-    const filePathSegment = `private/card-content/${cardId}/v${version}.md`;
+  async saveCardContent(cardId, content, version, contentHash) {
+    const filePathSegment = `private/card-content/${cardId}/v${version}-${contentHash}.md`;
     const buffer = Buffer.from(content, 'utf-8');
 
     await this.save(filePathSegment, Readable.from(buffer));
@@ -140,11 +140,11 @@ class LocalFileManager {
    * @param {string} contentRef - Content reference (file path)
    * @returns {Promise<string>} Content as string
    */
-  // eslint-disable-next-line class-methods-use-this
   async readCardContent(contentRef) {
     const stream = await this.read(contentRef);
     const chunks = [];
 
+    // eslint-disable-next-line no-restricted-syntax
     for await (const chunk of stream) {
       chunks.push(chunk);
     }
@@ -159,7 +159,6 @@ class LocalFileManager {
    * @param {Buffer} buffer - File buffer
    * @returns {Promise<string>} File path segment
    */
-  // eslint-disable-next-line class-methods-use-this
   async saveInlineAttachment(uploadedFileId, filename, buffer) {
     const filePathSegment = `private/inline-attachments/${uploadedFileId}/${filename}`;
     await this.save(filePathSegment, Readable.from(buffer));
@@ -171,11 +170,11 @@ class LocalFileManager {
    * @param {string} filePathSegment - File path segment
    * @returns {Promise<Buffer>} File buffer
    */
-  // eslint-disable-next-line class-methods-use-this
   async readInlineAttachment(filePathSegment) {
     const stream = await this.read(filePathSegment);
     const chunks = [];
 
+    // eslint-disable-next-line no-restricted-syntax
     for await (const chunk of stream) {
       chunks.push(chunk);
     }

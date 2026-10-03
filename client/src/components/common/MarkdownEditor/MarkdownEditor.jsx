@@ -3,7 +3,7 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import {
@@ -17,6 +17,7 @@ import { ActionName } from '@gravity-ui/markdown-editor/_/bundle/config/action-n
 /* eslint-enable import/no-unresolved */
 
 import { EditorModes } from '../../../constants/Enums';
+import inlineImagesApi from '../../../api/inline-images';
 
 import styles from './MarkdownEditor.module.scss';
 
@@ -51,30 +52,44 @@ export const fileToBase64Data = (file) =>
     reader.onerror = reject;
   });
 
-const fileUploadHandler = async (file) => {
-  const base64Data = await fileToBase64Data(file);
-  return { url: base64Data };
+const createFileUploadHandler = (cardId) => async (file) => {
+  // If no cardId is provided, fallback to base64 (backward compatibility)
+  if (!cardId) {
+    const base64Data = await fileToBase64Data(file);
+    return { url: base64Data };
+  }
+
+  try {
+    // Upload file to server and get the markdown path
+    const response = await inlineImagesApi.uploadInlineImage(cardId, file);
+    return { url: response.url };
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to upload inline image:', error);
+    // Fallback to base64 on error
+    const base64Data = await fileToBase64Data(file);
+    return { url: base64Data };
+  }
 };
 
 const MarkdownEditor = React.forwardRef(
   (
-    { defaultValue, defaultMode, isError, onChange, onSubmit, onCancel, onModeChange, ...props },
+    {
+      cardId,
+      defaultValue,
+      defaultMode,
+      isError,
+      onChange,
+      onSubmit,
+      onCancel,
+      onModeChange,
+      ...props
+    },
     ref,
   ) => {
     const wrapperRef = useRef(null);
 
-    const handleWrapperRef = useCallback(
-      (element) => {
-        wrapperRef.current = element;
-
-        if (typeof ref === 'function') {
-          ref(element);
-        } else if (ref) {
-          ref.current = element; // eslint-disable-line no-param-reassign
-        }
-      },
-      [ref],
-    );
+    const fileUploadHandler = useMemo(() => createFileUploadHandler(cardId), [cardId]);
 
     const editor = useMarkdownEditor({
       md: {
@@ -148,10 +163,20 @@ const MarkdownEditor = React.forwardRef(
       };
     }, []);
 
+    // Expose getValue method through ref
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        getValue: () => editor.getValue(),
+        focus: () => wrapperRef.current?.focus(),
+      }),
+      [editor],
+    );
+
     return (
       <div
         {...props} // eslint-disable-line react/jsx-props-no-spreading
-        ref={handleWrapperRef}
+        ref={wrapperRef}
         className={classNames(styles.wrapper, isError && styles.wrapperError)}
       >
         <MarkdownEditorView
@@ -167,6 +192,7 @@ const MarkdownEditor = React.forwardRef(
 );
 
 MarkdownEditor.propTypes = {
+  cardId: PropTypes.string,
   defaultValue: PropTypes.string.isRequired,
   defaultMode: PropTypes.oneOf(Object.values(EditorModes)),
   isError: PropTypes.bool,
@@ -177,6 +203,7 @@ MarkdownEditor.propTypes = {
 };
 
 MarkdownEditor.defaultProps = {
+  cardId: undefined,
   defaultMode: EditorModes.WYSIWYG,
   isError: false,
   onModeChange: undefined,

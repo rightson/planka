@@ -89,11 +89,7 @@ module.exports = {
       throw Errors.INLINE_ATTACHMENT_NOT_FOUND;
     }
 
-    // Determine file extension from MIME type
-    const extension = uploadedFile.mimeType ? uploadedFile.mimeType.split('/')[1] : 'png';
-
-    // Construct file path: private/inline-attachments/{uploadedFileId}/pasted-image-{contentId}.{ext}
-    const filePathSegment = `private/inline-attachments/${uploadedFile.id}/pasted-image-${inlineAttachment.contentId}.${extension}`;
+    const filePathSegment = `private/inline-attachments/${uploadedFile.id}/${inlineAttachment.filename}`;
 
     // Stream the file from storage
     const fileManager = sails.hooks['file-manager'].getInstance();
@@ -105,7 +101,7 @@ module.exports = {
       this.res.set('Content-Type', uploadedFile.mimeType || 'application/octet-stream');
       this.res.set(
         'Content-Disposition',
-        `inline; filename="pasted-image-${inlineAttachment.contentId}.${extension}"`,
+        `inline; filename="${inlineAttachment.filename.replace(/["\\]/g, '_')}"`,
       );
       this.res.set('Cache-Control', 'private, max-age=31536000'); // Cache for 1 year
 

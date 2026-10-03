@@ -58,7 +58,7 @@ exports.up = async (knex) => {
 
     table.bigInteger('id').primary().defaultTo(knex.raw('next_id()'));
     table.bigInteger('card_id').notNullable();
-    table.text('uploaded_file_id').notNullable();
+    table.bigInteger('uploaded_file_id').notNullable();
 
     // Distinguish from user uploads
     table.text('attachment_type').notNullable().defaultTo('inline'); // 'inline' | 'uploaded'
@@ -66,6 +66,7 @@ exports.up = async (knex) => {
 
     // Content reference (for markdown)
     table.text('content_id').notNullable(); // Unique ID within card content
+    table.text('filename').notNullable(); // Exact storage filename (including extension)
     table.text('alt_text'); // Alt text for accessibility
 
     // Position tracking (for ordering)

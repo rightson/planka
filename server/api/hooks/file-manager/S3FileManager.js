@@ -208,10 +208,11 @@ class S3FileManager {
    * @param {string} cardId - Card ID
    * @param {string} content - Content to save
    * @param {number} version - Content version
+   * @param {string} contentHash - SHA256 content hash
    * @returns {Promise<string>} S3 key
    */
-  async saveCardContent(cardId, content, version) {
-    const filePathSegment = `private/card-content/${cardId}/v${version}.md`;
+  async saveCardContent(cardId, content, version, contentHash) {
+    const filePathSegment = `private/card-content/${cardId}/v${version}-${contentHash}.md`;
     const buffer = Buffer.from(content, 'utf-8');
 
     await this.save(filePathSegment, buffer, 'text/markdown');
@@ -227,6 +228,7 @@ class S3FileManager {
     const stream = await this.read(contentRef);
     const chunks = [];
 
+    // eslint-disable-next-line no-restricted-syntax
     for await (const chunk of stream) {
       chunks.push(chunk);
     }
@@ -257,6 +259,7 @@ class S3FileManager {
     const stream = await this.read(filePathSegment);
     const chunks = [];
 
+    // eslint-disable-next-line no-restricted-syntax
     for await (const chunk of stream) {
       chunks.push(chunk);
     }

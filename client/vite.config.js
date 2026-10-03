@@ -27,5 +27,27 @@ export default defineConfig({
   },
   build: {
     target: browserslistToEsbuild(['>0.2%', 'not dead', 'not op_mini all']),
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Suppress dynamic import warnings
+        if (warning.code === 'DYNAMIC_IMPORT_OVERLAPPING') return;
+        warn(warning);
+      },
+    },
+  },
+  css: {
+    preprocessorOptions: {
+      css: {
+        // Suppress CSS minify warnings
+        minify: {
+          logLevel: 'silent',
+        },
+      },
+    },
+  },
+  esbuild: {
+    logOverride: {
+      'css-syntax-error': 'silent',
+    },
   },
 });

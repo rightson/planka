@@ -146,9 +146,9 @@ module.exports = {
       throw Errors.NOT_ENOUGH_RIGHTS;
     }
 
-    // Check content size limit (default 10GB, but configurable)
-    const maxContentSize =
-      sails.config.custom.maxCardContentSize || 10 * 1024 * 1024 * 1024; // 10GB
+    // Keep the fallback aligned with the client/config default. Deployments can
+    // opt into a different bound through MAX_CARD_CONTENT_SIZE.
+    const maxContentSize = sails.config.custom.maxCardContentSize || 10 * 1024 * 1024;
     const contentSize = Buffer.byteLength(inputs.content, 'utf-8');
 
     if (contentSize > maxContentSize) {

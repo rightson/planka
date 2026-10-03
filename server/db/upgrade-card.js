@@ -7,7 +7,7 @@
 /**
  * upgrade-card.js
  *
- * Optional bulk migration tool for upgrading cards from the old description-based system 
+ * Optional bulk migration tool for upgrading cards from the old description-based system
  * to the new hybrid card content system.
  *
  * NOTE: This script is OPTIONAL. Cards automatically migrate when edited.
@@ -24,8 +24,8 @@
  *   --card-id ID    Migrate only a specific card
  */
 
-/* eslint-disable no-await-in-loop */
-/* eslint-disable no-console */
+/* eslint-disable no-await-in-loop, no-console, no-use-before-define, no-shadow */
+/* eslint-disable no-restricted-syntax, no-promise-executor-return */
 
 const crypto = require('crypto');
 const sails = require('sails');
@@ -36,8 +36,11 @@ const args = process.argv.slice(2);
 const options = {
   dryRun: args.includes('--dry-run'),
   resume: args.includes('--resume'),
-  batchSize: parseInt(args.find((arg) => arg.startsWith('--batch-size='))?.split('=')[1] || '100', 10),
-  cardId: args.find((arg) => arg.startsWith('--card-id='))?.split('=')[1],
+  batchSize: parseInt(
+    (args.find((arg) => arg.startsWith('--batch-size=')) || '').split('=')[1] || '100',
+    10,
+  ),
+  cardId: (args.find((arg) => arg.startsWith('--card-id=')) || '').split('=')[1],
 };
 
 // Load Sails (following upgrade.js pattern)
@@ -149,7 +152,9 @@ async function runMigration(options) {
 
       // Progress indicator
       const progress = Math.floor(((i + batch.indexOf(card) + 1) / cards.length) * 100);
-      process.stdout.write(`\rProgress: ${progress}% (${i + batch.indexOf(card) + 1}/${cards.length})`);
+      process.stdout.write(
+        `\rProgress: ${progress}% (${i + batch.indexOf(card) + 1}/${cards.length})`,
+      );
     }
 
     // Rate limiting between batches
@@ -218,7 +223,9 @@ async function migrateCard(card, options) {
       const estimatedSize = card.description.length;
       const inlineThreshold = sails.config.custom.cardContentInlineThreshold || 1 * 1024 * 1024;
       const estimatedStorageType =
-        estimatedSize <= inlineThreshold ? CardContent.StorageTypes.INLINE : CardContent.StorageTypes.EXTERNAL;
+        estimatedSize <= inlineThreshold
+          ? CardContent.StorageTypes.INLINE
+          : CardContent.StorageTypes.EXTERNAL;
 
       console.log(
         `  📦 Estimated storage: ${estimatedStorageType} (${formatBytes(estimatedSize)}${estimatedStorageType === 'inline' ? ' - would use DB' : ' - would use files'})`,
@@ -260,6 +267,7 @@ async function migrateCard(card, options) {
         attachmentType: InlineAttachment.AttachmentTypes.INLINE,
         source: InlineAttachment.Sources.MIGRATION,
         contentId,
+        filename,
         altText: `Migrated image ${i + 1}`,
         position: i,
         isActive: true,
@@ -288,14 +296,13 @@ async function migrateCard(card, options) {
     // Determine storage type based on size (HYBRID STRATEGY)
     const inlineThreshold = sails.config.custom.cardContentInlineThreshold || 1 * 1024 * 1024; // 1MB
     const storageType =
-      contentSize <= inlineThreshold ? CardContent.StorageTypes.INLINE : CardContent.StorageTypes.EXTERNAL;
+      contentSize <= inlineThreshold
+        ? CardContent.StorageTypes.INLINE
+        : CardContent.StorageTypes.EXTERNAL;
 
     console.log(
       `  📦 Storage: ${storageType} (${formatBytes(contentSize)}${storageType === 'inline' ? ' - will use DB' : ' - will use files'})`,
     );
-
-    let contentInline = null;
-    let contentRef = null;
 
     // Save based on storage type
     if (storageType === CardContent.StorageTypes.INLINE) {
@@ -329,7 +336,12 @@ async function migrateCard(card, options) {
     } else {
       // ✅ Store in file system
       const fileManager = sails.hooks.fileManager.getInstance();
-      contentRef = await fileManager.saveCardContent(card.id, migratedContent, 1);
+      const contentRef = await fileManager.saveCardContent(
+        card.id,
+        migratedContent,
+        1,
+        contentHash,
+      );
 
       await CardContent.create({
         cardId: card.id,

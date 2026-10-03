@@ -55,6 +55,7 @@ module.exports.custom = {
   userAvatarsPathSegment: 'public/user-avatars',
   backgroundImagesPathSegment: 'public/background-images',
   attachmentsPathSegment: 'private/attachments',
+  inlineImagesPathSegment: 'private/inline-images',
 
   defaultAdminEmail:
     process.env.DEFAULT_ADMIN_EMAIL && process.env.DEFAULT_ADMIN_EMAIL.toLowerCase(),
@@ -111,12 +112,16 @@ module.exports.custom = {
   gravatarBaseUrl: process.env.GRAVATAR_BASE_URL,
 
   // Large Card Content System - HYBRID STORAGE
-  maxCardContentSize: envToBytes(process.env.MAX_CARD_CONTENT_SIZE) || 10 * 1024 * 1024 * 1024, // Default 10GB
+  // Content is currently materialized as a string/Buffer by the editor and API.
+  // Keep the default bounded until end-to-end streaming is implemented.
+  maxCardContentSize: envToBytes(process.env.MAX_CARD_CONTENT_SIZE) || 10 * 1024 * 1024, // 10MB
   enableLargeCardContent: process.env.ENABLE_LARGE_CARD_CONTENT !== 'false', // Enabled by default
   cardContentVersionsLimit: envToNumber(process.env.CARD_CONTENT_VERSIONS_LIMIT) || 0, // 0 = unlimited
 
   // Hybrid Storage Thresholds
-  cardContentInlineThreshold: envToBytes(process.env.CARD_CONTENT_INLINE_THRESHOLD) || 1 * 1024 * 1024, // 1MB - store in DB if under this
-  cardContentExternalThreshold: envToBytes(process.env.CARD_CONTENT_EXTERNAL_THRESHOLD) || 1 * 1024 * 1024, // 1MB - move to files if over this
+  cardContentInlineThreshold:
+    envToBytes(process.env.CARD_CONTENT_INLINE_THRESHOLD) || 1 * 1024 * 1024, // 1MB - store in DB if under this
+  cardContentExternalThreshold:
+    envToBytes(process.env.CARD_CONTENT_EXTERNAL_THRESHOLD) || 1 * 1024 * 1024, // 1MB - move to files if over this
   cardContentAutoPromote: process.env.CARD_CONTENT_AUTO_PROMOTE !== 'false', // Auto-promote to external on growth
 };

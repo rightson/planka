@@ -88,25 +88,19 @@ module.exports = {
       .sort('position ASC');
 
     // Present each inline attachment with its file data
-    const items = [];
-    for (const inlineAttachment of inlineAttachments) {
+    const items = inlineAttachments.map((inlineAttachment) => {
       const uploadedFile = inlineAttachment.uploadedFileId;
 
       // Get file data from uploaded_file
       const data = {
         uploadedFileId: uploadedFile.id,
-        filename: `inline-${inlineAttachment.contentId}`, // We don't store filename separately
+        filename: inlineAttachment.filename,
         mimeType: uploadedFile.mimeType,
         size: uploadedFile.size,
       };
 
-      items.push(
-        sails.helpers.inlineAttachments.presentOne({
-          inlineAttachment,
-          data,
-        }),
-      );
-    }
+      return sails.helpers.inlineAttachments.presentOne({ inlineAttachment, data });
+    });
 
     return {
       items,

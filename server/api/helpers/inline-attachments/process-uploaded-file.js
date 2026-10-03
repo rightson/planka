@@ -184,6 +184,7 @@ module.exports = {
       attachmentType: InlineAttachment.AttachmentTypes.INLINE,
       source: inputs.source,
       contentId,
+      filename,
       altText: inputs.altText || filename,
       isActive: true,
       referenceCount: 1,

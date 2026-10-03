@@ -125,6 +125,10 @@ module.exports = {
       required: true,
       columnName: 'content_id',
     },
+    filename: {
+      type: 'string',
+      required: true,
+    },
     altText: {
       type: 'string',
       allowNull: true,

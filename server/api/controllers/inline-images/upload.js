@@ -5,18 +5,18 @@
 
 /**
  * @swagger
- * /cards/{cardId}/inline-attachments:
+ * /cards/{cardId}/inline-images:
  *   post:
- *     summary: Create inline attachment
- *     description: Creates an inline attachment (pasted image) on a card. Requires board editor permissions.
+ *     summary: Upload inline image
+ *     description: Upload an image for inline embedding in card descriptions. Requires board editor permissions.
  *     tags:
- *       - InlineAttachments
- *     operationId: createInlineAttachment
+ *       - Inline Images
+ *     operationId: uploadInlineImage
  *     parameters:
  *       - name: cardId
  *         in: path
  *         required: true
- *         description: ID of the card to create the inline attachment on
+ *         description: ID of the card to upload the image for
  *         schema:
  *           type: string
  *           example: "1357158568008091264"
@@ -32,35 +32,35 @@
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: Image file to upload
- *               source:
- *                 type: string
- *                 enum: [paste, drag-drop, file-upload]
- *                 description: Source of the inline attachment
- *                 default: paste
- *                 example: paste
- *               altText:
- *                 type: string
- *                 maxLength: 256
- *                 description: Alt text for accessibility
- *                 example: Screenshot of dashboard
- *               requestId:
- *                 type: string
- *                 maxLength: 128
- *                 description: Request ID for tracking
- *                 example: req_123456
+ *                 description: Image file to upload (respects MAX_UPLOAD_FILE_SIZE, default 10MB)
  *     responses:
- *       201:
- *         description: Inline attachment created successfully
+ *       200:
+ *         description: Image uploaded successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
- *               required:
- *                 - item
  *               properties:
- *                 item:
- *                   $ref: '#/components/schemas/InlineAttachment'
+ *                 markdownPath:
+ *                   type: string
+ *                   description: Path to use in markdown
+ *                   example: uploads/card-123-image-2026-01-04T12-30-45-abc12345.png
+ *                 url:
+ *                   type: string
+ *                   description: Public URL to access the image
+ *                   example: /uploads/card-123-image-2026-01-04T12-30-45-abc12345.png
+ *                 filename:
+ *                   type: string
+ *                   description: Generated filename
+ *                   example: card-123-image-2026-01-04T12-30-45-abc12345.png
+ *                 mimeType:
+ *                   type: string
+ *                   description: MIME type of the uploaded file
+ *                   example: image/png
+ *                 size:
+ *                   type: number
+ *                   description: File size in bytes
+ *                   example: 1572864
  *       400:
  *         $ref: '#/components/responses/ValidationError'
  *       401:
@@ -70,24 +70,17 @@
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       422:
- *         description: Upload error
+ *         description: Upload or validation error
  *         content:
  *           application/json:
  *             schema:
  *               type: object
- *               required:
- *                 - code
- *                 - message
  *               properties:
  *                 code:
  *                   type: string
- *                   description: Error code
  *                   example: E_UNPROCESSABLE_ENTITY
  *                 message:
  *                   type: string
- *                   enum:
- *                     - No file was uploaded
- *                   description: Specific error message
  *                   example: No file was uploaded
  */
 
@@ -103,6 +96,12 @@ const Errors = {
   NO_FILE_WAS_UPLOADED: {
     noFileWasUploaded: 'No file was uploaded',
   },
+  INVALID_IMAGE_TYPE: {
+    invalidImageType: 'Invalid image type',
+  },
+  FILE_TOO_LARGE: {
+    fileTooLarge: 'File too large',
+  },
 };
 
 module.exports = {
@@ -110,20 +109,6 @@ module.exports = {
     cardId: {
       ...idInput,
       required: true,
-    },
-    source: {
-      type: 'string',
-      isIn: Object.values(InlineAttachment.Sources),
-      defaultsTo: InlineAttachment.Sources.PASTE,
-    },
-    altText: {
-      type: 'string',
-      maxLength: 256,
-    },
-    requestId: {
-      type: 'string',
-      isNotEmptyString: true,
-      maxLength: 128,
     },
   },
 
@@ -140,11 +125,18 @@ module.exports = {
     uploadError: {
       responseType: 'unprocessableEntity',
     },
+    invalidImageType: {
+      responseType: 'unprocessableEntity',
+    },
+    fileTooLarge: {
+      responseType: 'unprocessableEntity',
+    },
   },
 
   async fn(inputs, exits) {
     const { currentUser } = this.req;
 
+    // Get card and verify permissions
     const { board } = await sails.helpers.cards
       .getPathToProjectById(inputs.cardId)
       .intercept('pathNotFound', () => Errors.CARD_NOT_FOUND);
@@ -162,6 +154,7 @@ module.exports = {
       throw Errors.NOT_ENOUGH_RIGHTS;
     }
 
+    // Receive uploaded file
     let files;
     try {
       files = await sails.helpers.utils.receiveFile(this.req.file('file'));
@@ -175,33 +168,32 @@ module.exports = {
 
     const file = _.last(files);
 
-    // Process and upload inline attachment
-    const { inlineAttachment, data } = await sails.helpers.inlineAttachments.processUploadedFile({
-      file,
-      cardId: inputs.cardId,
-      source: inputs.source,
-      altText: inputs.altText,
-    });
+    // Process inline image with MAX_UPLOAD_FILE_SIZE or 10MB default
+    const maxSize = sails.config.custom.maxUploadFileSize || 10 * 1024 * 1024;
 
-    // Broadcast to board subscribers
-    sails.sockets.broadcast(
-      `board:${board.id}`,
-      'inlineAttachmentCreate',
-      {
-        item: sails.helpers.inlineAttachments.presentOne({
-          inlineAttachment,
-          data,
-        }),
-        requestId: inputs.requestId,
-      },
-      this.req,
-    );
+    let result;
+    try {
+      result = await sails.helpers.inlineImages.processUploadedFile({
+        cardId: inputs.cardId,
+        file,
+        maxSize,
+      });
+    } catch (error) {
+      if (error.exit === 'invalidMimeType') {
+        return exits.invalidImageType(error.output);
+      }
+      if (error.exit === 'fileTooLarge') {
+        return exits.fileTooLarge(error.output);
+      }
+      throw error;
+    }
 
     return exits.success({
-      item: sails.helpers.inlineAttachments.presentOne({
-        inlineAttachment,
-        data,
-      }),
+      markdownPath: result.markdownPath,
+      url: result.url,
+      filename: result.filename,
+      mimeType: result.mimeType,
+      size: result.size,
     });
   },
 };

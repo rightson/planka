@@ -495,6 +495,7 @@ const ProjectContent = React.memo(() => {
                   <>
                     {isEditDescriptionOpened && (
                       <EditMarkdown
+                        cardId={card.id}
                         defaultValue={card.description}
                         draftValue={descriptionDraft}
                         placeholder="common.enterDescription"

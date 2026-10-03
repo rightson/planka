@@ -22,7 +22,8 @@ module.exports = {
   },
 
   async fn(inputs) {
-    let { cardId, content, contentType } = inputs;
+    const { cardId, contentType } = inputs;
+    let { content } = inputs;
 
     // Migrate only when saving the existing description. A new edit must not
     // be replaced by the old description or create unrelated migrated files.
@@ -31,7 +32,7 @@ module.exports = {
       throw new Error('Card not found');
     }
     if (!card.contentMigrated && content === card.description) {
-      const migration = await sails.helpers.cardContent.autoMigrateFromDescription(cardId);
+      const migration = await sails.helpers.cardContent.autoMigrateFromDescription({ cardId });
       if (migration) {
         content = migration.content;
       }
@@ -42,6 +43,7 @@ module.exports = {
     const contentHash = crypto.createHash('sha256').update(content).digest('hex');
 
     // 2. Extract inline attachment references from content
+    // eslint-disable-next-line no-use-before-define
     const inlineAttachmentRefs = extractInlineAttachmentRefs(content);
     const contentIds = [...new Set(inlineAttachmentRefs.map((ref) => ref.contentId))];
     const attachments =
@@ -53,62 +55,59 @@ module.exports = {
     }
     const attachmentIds = attachments.map((attachment) => attachment.id);
 
-    // 3. Get current version
-    const currentCardContent = await CardContent.findOne({
-      cardId,
-    }).sort('version DESC');
-
-    const nextVersion = currentCardContent ? currentCardContent.version + 1 : 1;
-
-    // 4. Determine storage type based on size
+    // 3. Determine storage policy. Version selection and all database updates
+    // happen under a per-card row lock below, so concurrent saves cannot choose
+    // the same version.
     const externalThreshold = sails.config.custom.cardContentExternalThreshold;
     const inlineThreshold = sails.config.custom.cardContentInlineThreshold;
     const autoPromote = sails.config.custom.cardContentAutoPromote;
-
-    let storageType;
-    let contentInline = null;
-    let contentRef = null;
-
-    // Check if auto-promotion is needed
-    if (
-      autoPromote &&
-      currentCardContent &&
-      currentCardContent.storageType === CardContent.StorageTypes.INLINE &&
-      contentSize > externalThreshold
-    ) {
-      // ✅ Auto-promote from inline to external storage
-      storageType = CardContent.StorageTypes.EXTERNAL;
-      sails.log.info(
-        `Auto-promoting card ${cardId} content from inline to external storage (${contentSize} bytes)`,
-      );
-    } else if (contentSize <= inlineThreshold) {
-      // Store in database
-      storageType = CardContent.StorageTypes.INLINE;
-      contentInline = content;
-    } else {
-      // Store in file system
-      storageType = CardContent.StorageTypes.EXTERNAL;
-    }
-
-    // 5. Save external content to file storage if needed
     const fileManager = sails.hooks['file-manager'].getInstance();
-    if (storageType === CardContent.StorageTypes.EXTERNAL) {
-      contentRef = await fileManager.saveCardContent(cardId, content, nextVersion);
-    }
-
-    // 6. Create CardContent record with ACID transaction for inline storage
     let cardContent;
+    let pendingContentRef = null;
 
-    if (storageType === CardContent.StorageTypes.INLINE) {
-      // Use transaction for ACID guarantees with inline storage
+    try {
       await sails.getDatastore().transaction(async (db) => {
-        // Create CardContent record
+        await sails
+          .sendNativeQuery('SELECT id FROM card WHERE id = $1 FOR UPDATE', [cardId])
+          .usingConnection(db);
+
+        const currentCardContent = await CardContent.findOne({ cardId })
+          .sort('version DESC')
+          .usingConnection(db);
+        const nextVersion = currentCardContent ? currentCardContent.version + 1 : 1;
+
+        let storageType;
+        if (
+          autoPromote &&
+          currentCardContent &&
+          currentCardContent.storageType === CardContent.StorageTypes.INLINE &&
+          contentSize > externalThreshold
+        ) {
+          storageType = CardContent.StorageTypes.EXTERNAL;
+          sails.log.info(
+            `Auto-promoting card ${cardId} content from inline to external storage (${contentSize} bytes)`,
+          );
+        } else if (contentSize <= inlineThreshold) {
+          storageType = CardContent.StorageTypes.INLINE;
+        } else {
+          storageType = CardContent.StorageTypes.EXTERNAL;
+        }
+
+        if (storageType === CardContent.StorageTypes.EXTERNAL) {
+          pendingContentRef = await fileManager.saveCardContent(
+            cardId,
+            content,
+            nextVersion,
+            contentHash,
+          );
+        }
+
         cardContent = await CardContent.create({
           cardId,
           contentType,
           storageType,
-          contentInline,
-          contentRef: null,
+          contentInline: storageType === CardContent.StorageTypes.INLINE ? content : null,
+          contentRef: pendingContentRef,
           contentHash,
           size: contentSize,
           version: nextVersion,
@@ -117,42 +116,29 @@ module.exports = {
           .usingConnection(db)
           .fetch();
 
-        // Update card version atomically
         await Card.updateOne({ id: cardId })
           .set({
             contentMigrated: true,
             contentVersion: nextVersion,
           })
           .usingConnection(db);
-      });
-    } else {
-      // External storage - file already saved
-      cardContent = await CardContent.create({
-        cardId,
-        contentType,
-        storageType,
-        contentInline: null,
-        contentRef,
-        contentHash,
-        size: contentSize,
-        version: nextVersion,
-        inlineAttachmentIds: attachmentIds,
-      }).fetch();
 
-      // Update card version
-      await Card.updateOne({ id: cardId }).set({
-        contentMigrated: true,
-        contentVersion: nextVersion,
+        // Reset activity even after removing the final reference, atomically
+        // with the content version visible from the card.
+        await InlineAttachment.update({ cardId })
+          .set({ isActive: false, updatedAt: new Date() })
+          .usingConnection(db);
+        if (attachmentIds.length > 0) {
+          await InlineAttachment.update({ cardId, id: { in: attachmentIds } })
+            .set({ isActive: true, updatedAt: new Date() })
+            .usingConnection(db);
+        }
       });
-    }
-
-    // Reset activity even after removing the final reference.
-    await InlineAttachment.update({ cardId }).set({ isActive: false, updatedAt: new Date() });
-    if (attachmentIds.length > 0) {
-      await InlineAttachment.update({ cardId, id: { in: attachmentIds } }).set({
-        isActive: true,
-        updatedAt: new Date(),
-      });
+    } catch (error) {
+      if (pendingContentRef) {
+        await fileManager.delete(pendingContentRef);
+      }
+      throw error;
     }
 
     return cardContent;

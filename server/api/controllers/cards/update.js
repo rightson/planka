@@ -176,7 +176,7 @@ module.exports = {
     description: {
       type: 'string',
       isNotEmptyString: true,
-      maxLength: 1048576,
+      maxLength: 1048576, // 1MB - allows base64 images before migration to file URLs
       allowNull: true,
     },
     dueDate: {
@@ -326,14 +326,10 @@ module.exports = {
           `Card ${card.id}: Detected ${(values.description.match(/data:image/g) || []).length} base64 images in description`,
         );
 
-        // Temporarily save description for migration
-        await Card.updateOne({ id: card.id }).set({
-          description: values.description,
-          contentMigrated: false  // Ensure migration can run
+        const migration = await sails.helpers.cardContent.autoMigrateFromDescription({
+          cardId: card.id,
+          content: values.description,
         });
-
-        // Trigger auto-migration
-        const migration = await sails.helpers.cardContent.autoMigrateFromDescription(card.id);
 
         if (migration && migration.content) {
           sails.log.info(
@@ -342,9 +338,9 @@ module.exports = {
 
           // Replace description with migrated content containing inline:// URLs
           values.description = migration.content;
-          values.contentMigrated = true;
-
-          sails.log.debug(`Card ${card.id}: New description with inline URLs: ${migration.content.substring(0, 150)}...`);
+          sails.log.debug(
+            `Card ${card.id}: New description with inline URLs: ${migration.content.substring(0, 150)}...`,
+          );
         } else {
           sails.log.warn(`Card ${card.id}: Auto-migration returned null`);
         }

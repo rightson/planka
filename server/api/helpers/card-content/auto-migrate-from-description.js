@@ -11,6 +11,9 @@ module.exports = {
       type: 'string',
       required: true,
     },
+    content: {
+      type: 'string',
+    },
   },
 
   async fn(inputs) {
@@ -24,7 +27,9 @@ module.exports = {
     }
 
     // Skip if already migrated or no description
-    if (card.contentMigrated || !card.description) {
+    const content = inputs.content === undefined ? card.description : inputs.content;
+
+    if (card.contentMigrated || !content) {
       sails.log.debug(
         `Card ${cardId}: Skipping migration (contentMigrated=${card.contentMigrated}, hasDescription=${!!card.description})`,
       );
@@ -34,10 +39,8 @@ module.exports = {
     sails.log.info(`Auto-migrating card ${cardId} from description to new content system`);
 
     // Extract base64 images from description
-    const { migratedContent, inlineAttachments } = await extractBase64Images(
-      card.description,
-      cardId,
-    );
+    // eslint-disable-next-line no-use-before-define
+    const { migratedContent, inlineAttachments } = await extractBase64Images(content, cardId);
 
     if (inlineAttachments.length === 0) {
       sails.log.warn(`Card ${cardId}: No base64 images found to migrate`);
@@ -49,6 +52,8 @@ module.exports = {
     const savedAttachments = [];
     let errorCount = 0;
 
+    // Saving is intentionally sequential to limit memory use during legacy migration.
+    // eslint-disable-next-line no-restricted-syntax
     for (const attachment of inlineAttachments) {
       try {
         // Generate content ID for inline:// URLs
@@ -57,6 +62,7 @@ module.exports = {
         const filename = `pasted-image-${contentId}.${attachment.extension}`;
 
         // Create UploadedFile record first
+        // eslint-disable-next-line no-await-in-loop
         const uploadedFile = await UploadedFile.qm.createOne({
           type: UploadedFile.Types.ATTACHMENT,
           mimeType: attachment.mimeType,
@@ -65,6 +71,7 @@ module.exports = {
         });
 
         // Save file to storage using uploadedFile.id
+        // eslint-disable-next-line no-await-in-loop
         await fileManager.saveInlineAttachment(
           uploadedFile.id,
           filename,
@@ -73,10 +80,12 @@ module.exports = {
         );
 
         // Create InlineAttachment record
+        // eslint-disable-next-line no-await-in-loop
         const inlineAttachment = await InlineAttachment.create({
           cardId,
           uploadedFileId: uploadedFile.id,
           contentId,
+          filename,
           source: InlineAttachment.Sources.MIGRATION,
           position: savedAttachments.length,
           isActive: true,
@@ -92,7 +101,7 @@ module.exports = {
           id: inlineAttachment.id,
         });
       } catch (error) {
-        errorCount++;
+        errorCount += 1;
         sails.log.error(
           `Card ${cardId}: Failed to save inline attachment ${errorCount}:`,
           error.message,
@@ -113,6 +122,7 @@ module.exports = {
 
     // Replace placeholders with inline:// URLs
     let finalContent = migratedContent;
+    // eslint-disable-next-line no-restricted-syntax
     for (const attachment of savedAttachments) {
       finalContent = finalContent.replace(
         new RegExp(attachment.placeholder, 'g'),
@@ -159,7 +169,7 @@ async function extractBase64Images(content, cardId) {
 
     // Replace base64 with placeholder temporarily
     migratedContent = migratedContent.replace(fullMatch, `![${altText}](${placeholder})`);
-    placeholderIndex++;
+    placeholderIndex += 1;
   }
 
   if (inlineAttachments.length > 0) {

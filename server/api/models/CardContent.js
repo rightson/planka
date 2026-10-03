@@ -7,7 +7,7 @@
  * CardContent.js
  *
  * @description :: A model for storing large card content in files (not database).
- *                 Supports 10GB+ content with versioning and inline attachment tracking.
+ *                 Supports bounded, configurable content with versioning and inline attachment tracking.
  * @docs        :: https://sailsjs.com/docs/concepts/models-and-orm/models
  */
 
@@ -44,7 +44,7 @@
  *         contentRef:
  *           type: string
  *           description: File path or S3 key where content is stored
- *           example: card-content/1357158568008091265/v1.md
+ *           example: card-content/1357158568008091265/v1-abc123.md
  *         contentHash:
  *           type: string
  *           nullable: true

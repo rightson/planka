@@ -231,6 +231,26 @@ module.exports = {
         values.listChangedAt = new Date().toISOString();
       }
 
+      // Migrate base64 images to file storage if description is being updated
+      // Only run migration if description contains base64 images
+      if (values.description && values.description.includes('data:image')) {
+        try {
+          const migratedDescription = await sails.helpers.inlineImages.migrateLegacyImages({
+            cardId: inputs.record.id,
+            markdown: values.description,
+          });
+
+          // Only update if migration succeeded and returned a value
+          if (migratedDescription !== undefined) {
+            values.description = migratedDescription;
+          }
+        } catch (error) {
+          sails.log.error('Failed to migrate legacy images in description:', error);
+          // Keep the original edited description - don't let migration errors block saves
+        }
+      }
+      // If description is null or empty, allow it (user is deleting content)
+
       const updateResult = await Card.qm.updateOne(inputs.record.id, values);
 
       ({ card } = updateResult);

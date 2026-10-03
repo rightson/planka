@@ -24,14 +24,15 @@ module.exports = {
   async fn(inputs) {
     let { cardId, content, contentType } = inputs;
 
-    // 0. Auto-migrate from old description system if needed
-    const migration = await sails.helpers.cardContent.autoMigrateFromDescription(cardId);
-    if (migration) {
-      sails.log.info(
-        `Auto-migrated card ${cardId}: ${migration.inlineAttachmentCount} inline attachments`,
-      );
-      // Use migrated content if no new content provided (shouldn't happen in normal flow)
-      if (!content || content === '') {
+    // Migrate only when saving the existing description. A new edit must not
+    // be replaced by the old description or create unrelated migrated files.
+    const card = await Card.findOne({ id: cardId });
+    if (!card) {
+      throw new Error('Card not found');
+    }
+    if (!card.contentMigrated && content === card.description) {
+      const migration = await sails.helpers.cardContent.autoMigrateFromDescription(cardId);
+      if (migration) {
         content = migration.content;
       }
     }
@@ -42,6 +43,15 @@ module.exports = {
 
     // 2. Extract inline attachment references from content
     const inlineAttachmentRefs = extractInlineAttachmentRefs(content);
+    const contentIds = [...new Set(inlineAttachmentRefs.map((ref) => ref.contentId))];
+    const attachments =
+      contentIds.length > 0
+        ? await InlineAttachment.find({ cardId, contentId: { in: contentIds } })
+        : [];
+    if (attachments.length !== contentIds.length) {
+      throw new Error('Unknown or cross-card inline attachment reference');
+    }
+    const attachmentIds = attachments.map((attachment) => attachment.id);
 
     // 3. Get current version
     const currentCardContent = await CardContent.findOne({
@@ -81,7 +91,7 @@ module.exports = {
     }
 
     // 5. Save external content to file storage if needed
-    const fileManager = sails.hooks.fileManager.getInstance();
+    const fileManager = sails.hooks['file-manager'].getInstance();
     if (storageType === CardContent.StorageTypes.EXTERNAL) {
       contentRef = await fileManager.saveCardContent(cardId, content, nextVersion);
     }
@@ -102,7 +112,7 @@ module.exports = {
           contentHash,
           size: contentSize,
           version: nextVersion,
-          inlineAttachmentIds: inlineAttachmentRefs.map((ref) => ref.id),
+          inlineAttachmentIds: attachmentIds,
         })
           .usingConnection(db)
           .fetch();
@@ -126,7 +136,7 @@ module.exports = {
         contentHash,
         size: contentSize,
         version: nextVersion,
-        inlineAttachmentIds: inlineAttachmentRefs.map((ref) => ref.id),
+        inlineAttachmentIds: attachmentIds,
       }).fetch();
 
       // Update card version
@@ -136,18 +146,13 @@ module.exports = {
       });
     }
 
-    // 7. Update inline attachment reference counts
-    if (inlineAttachmentRefs.length > 0) {
-      await InlineAttachment.update({
-        cardId,
-        contentId: { in: inlineAttachmentRefs.map((r) => r.contentId) },
-      }).set({ isActive: true, updatedAt: new Date() });
-
-      // Mark unused inline attachments as inactive
-      await InlineAttachment.update({
-        cardId,
-        contentId: { nin: inlineAttachmentRefs.map((r) => r.contentId) },
-      }).set({ isActive: false, updatedAt: new Date() });
+    // Reset activity even after removing the final reference.
+    await InlineAttachment.update({ cardId }).set({ isActive: false, updatedAt: new Date() });
+    if (attachmentIds.length > 0) {
+      await InlineAttachment.update({ cardId, id: { in: attachmentIds } }).set({
+        isActive: true,
+        updatedAt: new Date(),
+      });
     }
 
     return cardContent;
@@ -169,7 +174,6 @@ function extractInlineAttachmentRefs(content) {
   while ((match = regex.exec(content)) !== null) {
     refs.push({
       contentId: match[1],
-      id: match[1], // This will be resolved to actual ID in the database
     });
   }
 

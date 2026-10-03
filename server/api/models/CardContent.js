@@ -96,6 +96,7 @@ const StorageTypes = {
 };
 
 module.exports = {
+  tableName: 'card_content',
   ContentTypes,
   StorageTypes,
 

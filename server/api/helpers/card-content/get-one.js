@@ -47,7 +47,7 @@ module.exports = {
           content = cardContent.contentInline;
         } else {
           // Load from file storage
-          const fileManager = sails.hooks.fileManager.getInstance();
+          const fileManager = sails.hooks['file-manager'].getInstance();
           content = await fileManager.readCardContent(cardContent.contentRef);
         }
 
@@ -68,7 +68,7 @@ module.exports = {
       content,
       contentType: cardContent ? cardContent.contentType : 'markdown',
       version: cardContent ? cardContent.version : 0,
-      size: cardContent ? cardContent.size : (content ? Buffer.byteLength(content, 'utf-8') : 0),
+      size: cardContent ? cardContent.size : content ? Buffer.byteLength(content, 'utf-8') : 0,
       inlineAttachments,
       contentMigrated: card.contentMigrated,
     };

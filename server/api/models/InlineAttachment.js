@@ -100,6 +100,7 @@ const Sources = {
 };
 
 module.exports = {
+  tableName: 'inline_attachment',
   AttachmentTypes,
   Sources,
 

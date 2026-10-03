@@ -7,6 +7,7 @@ const fs = require('fs');
 const fse = require('fs-extra');
 const path = require('path');
 const { pipeline } = require('stream/promises');
+const { Readable } = require('stream');
 const { rimraf } = require('rimraf');
 
 const PATH_SEGMENT_TO_URL_REPLACE_REGEX = /(public|private)\//;
@@ -130,7 +131,7 @@ class LocalFileManager {
     const filePathSegment = `private/card-content/${cardId}/v${version}.md`;
     const buffer = Buffer.from(content, 'utf-8');
 
-    await this.save(filePathSegment, buffer);
+    await this.save(filePathSegment, Readable.from(buffer));
     return filePathSegment;
   }
 
@@ -161,7 +162,7 @@ class LocalFileManager {
   // eslint-disable-next-line class-methods-use-this
   async saveInlineAttachment(uploadedFileId, filename, buffer) {
     const filePathSegment = `private/inline-attachments/${uploadedFileId}/${filename}`;
-    await this.save(filePathSegment, buffer);
+    await this.save(filePathSegment, Readable.from(buffer));
     return filePathSegment;
   }
 

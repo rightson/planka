@@ -25,7 +25,9 @@ module.exports = {
 
     // Skip if already migrated or no description
     if (card.contentMigrated || !card.description) {
-      sails.log.debug(`Card ${cardId}: Skipping migration (contentMigrated=${card.contentMigrated}, hasDescription=${!!card.description})`);
+      sails.log.debug(
+        `Card ${cardId}: Skipping migration (contentMigrated=${card.contentMigrated}, hasDescription=${!!card.description})`,
+      );
       return null;
     }
 
@@ -43,7 +45,7 @@ module.exports = {
     }
 
     // Save inline attachments
-    const fileManager = sails.hooks.fileManager.getInstance();
+    const fileManager = sails.hooks['file-manager'].getInstance();
     const savedAttachments = [];
     let errorCount = 0;
 
@@ -55,12 +57,12 @@ module.exports = {
         const filename = `pasted-image-${contentId}.${attachment.extension}`;
 
         // Create UploadedFile record first
-        const uploadedFile = await UploadedFile.create({
-          type: 'inlineAttachment',
+        const uploadedFile = await UploadedFile.qm.createOne({
+          type: UploadedFile.Types.ATTACHMENT,
           mimeType: attachment.mimeType,
           size: buffer.length,
           referencesTotal: 1,
-        }).fetch();
+        });
 
         // Save file to storage using uploadedFile.id
         await fileManager.saveInlineAttachment(
@@ -80,7 +82,9 @@ module.exports = {
           isActive: true,
         }).fetch();
 
-        sails.log.info(`Card ${cardId}: Saved image ${savedAttachments.length + 1}/${inlineAttachments.length} (${buffer.length} bytes, contentId: ${contentId})`);
+        sails.log.info(
+          `Card ${cardId}: Saved image ${savedAttachments.length + 1}/${inlineAttachments.length} (${buffer.length} bytes, contentId: ${contentId})`,
+        );
 
         savedAttachments.push({
           placeholder: attachment.placeholder,
@@ -89,27 +93,36 @@ module.exports = {
         });
       } catch (error) {
         errorCount++;
-        sails.log.error(`Card ${cardId}: Failed to save inline attachment ${errorCount}:`, error.message);
+        sails.log.error(
+          `Card ${cardId}: Failed to save inline attachment ${errorCount}:`,
+          error.message,
+        );
         sails.log.error(error.stack);
-        // Continue with other attachments
+        // Retain the original data URL for any image that could not be saved.
+        // Returning an unresolved placeholder would permanently corrupt content.
+        savedAttachments.push({
+          placeholder: attachment.placeholder,
+          originalDataUrl: attachment.originalDataUrl,
+        });
       }
     }
 
-    sails.log.info(`Card ${cardId}: Successfully saved ${savedAttachments.length}/${inlineAttachments.length} images (${errorCount} errors)`);
-
+    sails.log.info(
+      `Card ${cardId}: Successfully saved ${savedAttachments.length}/${inlineAttachments.length} images (${errorCount} errors)`,
+    );
 
     // Replace placeholders with inline:// URLs
     let finalContent = migratedContent;
     for (const attachment of savedAttachments) {
       finalContent = finalContent.replace(
         new RegExp(attachment.placeholder, 'g'),
-        `inline://${attachment.contentId}`,
+        attachment.originalDataUrl || `inline://${attachment.contentId}`,
       );
     }
 
     return {
       content: finalContent,
-      inlineAttachmentCount: savedAttachments.length,
+      inlineAttachmentCount: savedAttachments.filter((attachment) => attachment.contentId).length,
     };
   },
 };
@@ -141,6 +154,7 @@ async function extractBase64Images(content, cardId) {
       data: base64Data,
       extension,
       placeholder,
+      originalDataUrl: `data:${mimeType};base64,${base64Data}`,
     });
 
     // Replace base64 with placeholder temporarily

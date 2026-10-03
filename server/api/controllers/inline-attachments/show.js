@@ -96,10 +96,10 @@ module.exports = {
     const filePathSegment = `private/inline-attachments/${uploadedFile.id}/pasted-image-${inlineAttachment.contentId}.${extension}`;
 
     // Stream the file from storage
-    const fileManager = sails.hooks.fileManager.getInstance();
+    const fileManager = sails.hooks['file-manager'].getInstance();
 
     try {
-      const stream = await fileManager.readInlineAttachment(filePathSegment);
+      const stream = await fileManager.read(filePathSegment);
 
       // Set response headers
       this.res.set('Content-Type', uploadedFile.mimeType || 'application/octet-stream');
@@ -107,13 +107,12 @@ module.exports = {
         'Content-Disposition',
         `inline; filename="pasted-image-${inlineAttachment.contentId}.${extension}"`,
       );
-      this.res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+      this.res.set('Cache-Control', 'private, max-age=31536000'); // Cache for 1 year
 
       // Stream the file
       stream.pipe(this.res);
 
       // Return to prevent Sails from sending default response
-      return;
     } catch (error) {
       sails.log.error('Failed to stream inline attachment:', error);
       throw Errors.INLINE_ATTACHMENT_NOT_FOUND;
